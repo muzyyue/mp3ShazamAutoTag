@@ -290,6 +290,135 @@ class AudioEditor:
 
         return stdout, stderr
 
+    # ── 裁剪模式处理器 ──────────────────────────────────────────────
+
+    @staticmethod
+    def _build_auto_trim_filter(input_stream, config: TrimConfig):
+        """
+        构建自动裁剪滤镜（静音检测）
+
+        使用 silenceremove 滤镜自动移除音频首尾的静音部分。
+
+        Args:
+            input_stream: ffmpeg 输入流
+            config: 裁剪配置（使用 silence_threshold 和 min_silence_duration）
+
+        Returns:
+            ffmpeg.Stream: 应用滤镜后的音频流
+        """
+        # 使用关键字参数避免 ffmpeg-python 过度转义特殊字符
+        # 注意：min_silence_duration 不被所有 FFmpeg 版本支持
+        # 改用 start_duration/stop_duration 控制最小静音时长
+        return input_stream.audio.filter("silenceremove",
+            start_periods=1,
+            start_duration=config.min_silence_duration,  # 使用用户配置的最小静音时长
+            start_threshold=f"{config.silence_threshold}dB",
+            stop_periods=1,
+            stop_duration=config.min_silence_duration,  # 同样应用于停止检测
+            stop_threshold=f"{config.silence_threshold}dB",
+        )
+
+    @staticmethod
+    def _build_manual_trim_filter(input_stream, config: TrimConfig):
+        """
+        构建手动裁剪滤镜（指定起止时间）
+
+        使用 atrim 滤镜按给定的开始和结束时间裁剪音频。
+
+        Args:
+            input_stream: ffmpeg 输入流
+            config: 裁剪配置（使用 start_time 和 end_time）
+
+        Returns:
+            ffmpeg.Stream: 应用滤镜后的音频流
+        """
+        return input_stream.audio.filter(
+            "atrim",
+            start=config.start_time,
+            end=config.end_time,
+        )
+
+    @staticmethod
+    def _build_duration_trim_filter(input_stream, config: TrimConfig):
+        """
+        构建时长裁剪滤镜（指定开始时间和持续时长）
+
+        使用 atrim 滤镜从 start_time 开始裁剪 duration 秒。
+
+        Args:
+            input_stream: ffmpeg 输入流
+            config: 裁剪配置（使用 start_time 和 duration）
+
+        Returns:
+            ffmpeg.Stream: 应用滤镜后的音频流
+        """
+        end_time = config.start_time + (config.duration or 0)
+        return input_stream.audio.filter(
+            "atrim",
+            start=config.start_time,
+            end=end_time,
+        )
+
+    # ── 编码参数配置 ────────────────────────────────────────────────
+
+    @staticmethod
+    def _get_codec_config(output_quality: "OutputQuality", output_ext: str) -> dict:
+        """
+        根据输出质量和文件扩展名获取编码参数配置
+
+        统一使用 ConverterConfig 的质量预设体系，确保与格式转换步骤一致。
+
+        Args:
+            output_quality: 输出质量配置（HIGH/STANDARD/SMALL）
+            output_ext: 输出文件扩展名（如 .mp3, .flac）
+
+        Returns:
+            dict: 编码参数字典，空 dict 表示无需特殊编码参数
+        """
+        # 统一使用 ConverterConfig 的质量预设体系，确保与格式转换步骤一致
+        quality_mapping = {
+            OutputQuality.HIGH: ConvQualityPreset.HIGH,
+            OutputQuality.STANDARD: ConvQualityPreset.MEDIUM,
+            OutputQuality.SMALL: ConvQualityPreset.LOW,
+        }
+        conv_preset = quality_mapping.get(output_quality, ConvQualityPreset.MEDIUM)
+
+        logger.debug(f"输出质量: {output_quality.display_name} -> ConverterPreset: {conv_preset.value}")
+
+        # 统一的编码参数配置（与 converter/config.py FormatConfig 保持一致）
+        codec_config = {
+            '.wav': {'acodec': 'pcm_s16le'},                    # WAV 无损
+            '.flac': {'acodec': 'flac'},                        # FLAC 无损
+            '.mp3': {'acodec': 'libmp3lame'},                   # MP3
+            '.aac': {'acodec': 'aac'},                          # AAC
+            '.ogg': {'acodec': 'libvorbis'},                    # OGG Vorbis
+            '.m4a': {'acodec': 'aac'},                          # M4A (AAC)
+        }
+
+        # 比特率配置（kbps）- 与 FormatConfig._apply_quality_preset 完全一致
+        bitrate_config = {
+            ConvQualityPreset.LOW: {'.mp3': 128, '.aac': 96,  '.ogg': 96,  '.m4a': 96},
+            ConvQualityPreset.MEDIUM: {'.mp3': 192, '.aac': 128, '.ogg': 128, '.m4a': 128},
+            ConvQualityPreset.HIGH: {'.mp3': 256, '.aac': 160, '.ogg': 160, '.m4a': 160},
+            ConvQualityPreset.LOSSLESS: {'.mp3': 320, '.aac': 192, '.ogg': 192, '.m4a': 192},
+        }
+
+        base_kwargs = codec_config.get(output_ext, {})
+
+        if not base_kwargs:
+            return {}
+
+        kwargs = dict(base_kwargs)
+
+        # 为有损格式设置比特率（WAV/FLAC 不需要）
+        if output_ext in ['.mp3', '.aac', '.ogg', '.m4a']:
+            preset_bitrates = bitrate_config.get(conv_preset, {})
+            target_kbps = preset_bitrates.get(output_ext, 192)
+            kwargs['b:a'] = f'{target_kbps}k'
+            logger.debug(f"编码参数: codec={kwargs['acodec']}, bitrate={target_kbps}kbps")
+
+        return kwargs
+
     def trim_audio(
         self,
         input_path: str,
@@ -349,35 +478,18 @@ class AudioEditor:
             
             input_stream = ffmpeg.input(safe_input)
 
-            if config.mode == TrimMode.AUTO:
-                # 使用关键字参数避免 ffmpeg-python 过度转义特殊字符
-                # 注意：min_silence_duration 不被所有 FFmpeg 版本支持
-                # 改用 start_duration/stop_duration 控制最小静音时长
-                processed = input_stream.audio.filter("silenceremove",
-                    start_periods=1,
-                    start_duration=config.min_silence_duration,  # 使用用户配置的最小静音时长
-                    start_threshold=f"{config.silence_threshold}dB",
-                    stop_periods=1,
-                    stop_duration=config.min_silence_duration,  # 同样应用于停止检测
-                    stop_threshold=f"{config.silence_threshold}dB",
-                )
-            elif config.mode == TrimMode.MANUAL:
-                processed = input_stream.audio.filter(
-                    "atrim",
-                    start=config.start_time,
-                    end=config.end_time,
-                )
-            elif config.mode == TrimMode.DURATION:
-                end_time = config.start_time + (config.duration or 0)
-                processed = input_stream.audio.filter(
-                    "atrim",
-                    start=config.start_time,
-                    end=end_time,
-                )
-            else:
+            # 使用处理器模式映射代替 if/elif 链
+            trim_handlers = {
+                TrimMode.AUTO: self._build_auto_trim_filter,
+                TrimMode.MANUAL: self._build_manual_trim_filter,
+                TrimMode.DURATION: self._build_duration_trim_filter,
+            }
+            handler = trim_handlers.get(config.mode)
+            if handler is None:
                 result["error"] = f"不支持的裁剪模式: {config.mode}"
                 logger.error(result["error"])
                 return result
+            processed = handler(input_stream, config)
 
             if config.fade_in > 0 or config.fade_out > 0:
                 fade_kwargs = {"t": "in", "d": config.fade_in}
@@ -387,52 +499,11 @@ class AudioEditor:
                     fade_kwargs["d"] = config.fade_out
                 processed = processed.filter("afade", **fade_kwargs)
 
-            # 根据输出质量配置选择编解码器和比特率参数
-            # 统一使用 ConverterConfig 的质量预设体系，确保与格式转换步骤一致
-            
-            quality_mapping = {
-                OutputQuality.HIGH: ConvQualityPreset.HIGH,
-                OutputQuality.STANDARD: ConvQualityPreset.MEDIUM,
-                OutputQuality.SMALL: ConvQualityPreset.LOW,
-            }
-            conv_preset = quality_mapping.get(output_quality, ConvQualityPreset.MEDIUM)
-            
-            logger.debug(f"输出质量: {output_quality.display_name} -> ConverterPreset: {conv_preset.value}")
-            
-            # 根据输出文件扩展名选择合适的音频编解码器和比特率（与 FormatConfig._apply_quality_preset 一致）
+            # 根据输出质量和扩展名配置编码参数
             output_ext = os.path.splitext(safe_output)[1].lower()
-            
-            # 统一的编码参数配置（与 converter/config.py FormatConfig 保持一致）
-            codec_config = {
-                '.wav': {'acodec': 'pcm_s16le'},                    # WAV 无损
-                '.flac': {'acodec': 'flac'},                        # FLAC 无损
-                '.mp3': {'acodec': 'libmp3lame'},                   # MP3
-                '.aac': {'acodec': 'aac'},                          # AAC
-                '.ogg': {'acodec': 'libvorbis'},                    # OGG Vorbis
-                '.m4a': {'acodec': 'aac'},                          # M4A (AAC)
-            }
-            
-            # 比特率配置（kbps）- 与 FormatConfig._apply_quality_preset 完全一致
-            bitrate_config = {
-                ConvQualityPreset.LOW: {'.mp3': 128, '.aac': 96,  '.ogg': 96,  '.m4a': 96},
-                ConvQualityPreset.MEDIUM: {'.mp3': 192, '.aac': 128, '.ogg': 128, '.m4a': 128},
-                ConvQualityPreset.HIGH: {'.mp3': 256, '.aac': 160, '.ogg': 160, '.m4a': 160},
-                ConvQualityPreset.LOSSLESS: {'.mp3': 320, '.aac': 192, '.ogg': 192, '.m4a': 192},
-            }
-            
-            base_kwargs = codec_config.get(output_ext, {})
-            
-            if base_kwargs:
-                kwargs = dict(base_kwargs)
-                
-                # 为有损格式设置比特率（WAV/FLAC 不需要）
-                if output_ext in ['.mp3', '.aac', '.ogg', '.m4a']:
-                    preset_bitrates = bitrate_config.get(conv_preset, {})
-                    target_kbps = preset_bitrates.get(output_ext, 192)
-                    kwargs['b:a'] = f'{target_kbps}k'
-                    logger.debug(f"编码参数: codec={kwargs['acodec']}, bitrate={target_kbps}kbps")
-                
-                output = processed.output(safe_output, **kwargs)
+            codec_kwargs = self._get_codec_config(output_quality, output_ext)
+            if codec_kwargs:
+                output = processed.output(safe_output, **codec_kwargs)
             else:
                 output = processed.output(safe_output)
             try:

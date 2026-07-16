@@ -12,12 +12,21 @@ from .provider import (
     get_provider_api,
     list_providers
 )
+from .lyric_fetcher import LyricFetcher
+from .lyric_embedder import LyricEmbedder
+from .lyric_converter import LyricConverter
+from .lyric_utils import parse_lrc_duration, calculate_duration_match_ratio
 
 __all__ = [
     'LyricManager',
+    'LyricFetcher',
+    'LyricEmbedder',
+    'LyricConverter',
     'LyricProvider',
     'PROVIDERS',
     'get_provider',
     'get_provider_api',
-    'list_providers'
+    'list_providers',
+    'parse_lrc_duration',
+    'calculate_duration_match_ratio',
 ]

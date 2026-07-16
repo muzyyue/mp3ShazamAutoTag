@@ -566,15 +566,19 @@ class MusicManagerPage(QWidget):
 
         打开文件夹选择对话框，选择后扫描音频文件并填充表格。
         """
-        directory = QFileDialog.getExistingDirectory(
-            self,
-            tr("select_directory"),
-            "",
-            QFileDialog.Option.ShowDirsOnly
-        )
+        try:
+            directory = QFileDialog.getExistingDirectory(
+                self,
+                tr("select_directory"),
+                "",
+                QFileDialog.Option.ShowDirsOnly
+            )
 
-        if directory:
-            self._scan_audio_files(directory)
+            if directory:
+                self._scan_audio_files(directory)
+        except Exception as e:
+            self.logger.exception(f"Error in _on_browse_directory: {e}")
+            MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _on_clear_data(self) -> None:
         """
@@ -583,53 +587,56 @@ class MusicManagerPage(QWidget):
         清除所有文件列表和缓存数据，释放文件句柄，
         解决 Windows 下文件被占用的问题。
         """
-        # 清空文件列表数据
-        self.files.clear()
-        self.selected_files.clear()
-        self.current_file = None
+        try:
+            # 清空文件列表数据
+            self.files.clear()
+            self.selected_files.clear()
+            self.current_file = None
 
-        # 清空表格
-        self.file_table.setRowCount(0)
+            # 清空表格
+            self.file_table.setRowCount(0)
 
-        # 清除搜索状态
-        self._clear_search()
+            # 清除搜索状态
+            self._clear_search()
 
-        # 清空歌词缓存
-        self.lyrics_cache.clear()
-        self.current_lyrics = None
+            # 清空歌词缓存
+            self.lyrics_cache.clear()
+            self.current_lyrics = None
 
-        # 清空封面缓存
-        self._current_cover_data = None
+            # 清空封面缓存
+            self._current_cover_data = None
 
-        # 重置表单为占位符状态
-        self.title_edit.clear()
-        self.artist_edit.clear()
-        self.album_edit.clear()
-        self.year_edit.clear()
-        self.genre_edit.clear()
+            # 重置表单为占位符状态
+            self.title_edit.clear()
+            self.artist_edit.clear()
+            self.album_edit.clear()
+            self.year_edit.clear()
+            self.genre_edit.clear()
 
-        # 重置封面预览（复用已有方法，确保行为一致）
-        self._set_default_cover()
+            # 重置封面预览（复用已有方法，确保行为一致）
+            self._set_default_cover()
 
-        # 重置歌词编辑区
-        self.lyric_text.clear()
+            # 重置歌词编辑区
+            self.lyric_text.clear()
 
-        # 停止可能正在运行的工作线程
-        if hasattr(self, 'lyric_worker') and self.lyric_worker and self.lyric_worker.isRunning():
-            self.lyric_worker.terminate()
-            self.lyric_worker.wait()
-            self.lyric_worker = None
+            # 停止可能正在运行的工作线程
+            if hasattr(self, 'lyric_worker') and self.lyric_worker and self.lyric_worker.isRunning():
+                self.lyric_worker.terminate()
+                self.lyric_worker.wait()
+                self.lyric_worker = None
 
-        if hasattr(self, 'embed_worker') and self.embed_worker and self.embed_worker.isRunning():
-            self.embed_worker.terminate()
-            self.embed_worker.wait()
-            self.embed_worker = None
+            if hasattr(self, 'embed_worker') and self.embed_worker and self.embed_worker.isRunning():
+                self.embed_worker.terminate()
+                self.embed_worker.wait()
+                self.embed_worker = None
 
-        # 强制垃圾回收，释放文件句柄
-        import gc
-        gc.collect()
+            # 强制垃圾回收，释放文件句柄
+            import gc
+            gc.collect()
 
-        self.logger.info("[MusicManagerPage] Data cleared, file handles released")
+            self.logger.info("[MusicManagerPage] Data cleared, file handles released")
+        except Exception as e:
+            self.logger.exception(f"Error in _on_clear_data: {e}")
 
     def _scan_audio_files(self, directory: str) -> None:
         """
@@ -643,83 +650,87 @@ class MusicManagerPage(QWidget):
         Args:
             directory (str): 要扫描的目录路径
         """
-        # 支持的音频格式（与 CustomFormatManager 内置格式保持一致）
-        supported_formats = [
-            '.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac',
-            '.wma', '.opus'
-        ]
-
-        # 清空文件列表
-        self.files.clear()
-
-        # 清理旧目录的歌词缓存，避免缓存污染
-        self.lyrics_cache.clear()
-        self.current_lyrics = None
-        self.lyric_text.clear()
-
-        # 清除搜索状态（恢复显示所有文件）
-        self._clear_search()
-
-        # 遍历目录收集所有文件
-        audio_files = []
-        for root, dirs, filenames in os.walk(directory):
-            # 跳过 test 目录
-            if 'test' in dirs:
-                dirs.remove('test')
-
-            for filename in filenames:
-                ext = os.path.splitext(filename)[1].lower()
-                if ext in supported_formats:
-                    file_path = os.path.join(root, filename)
-                    audio_files.append((filename, ext, file_path))
-
-        # 批量更新表格（禁用 UI 更新以提升性能）
-        self.file_table.setUpdatesEnabled(False)
         try:
-            self.file_table.setRowCount(0)
-            self.file_table.setRowCount(len(audio_files))
+            # 支持的音频格式（与 CustomFormatManager 内置格式保持一致）
+            supported_formats = [
+                '.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac',
+                '.wma', '.opus'
+            ]
 
-            for row, (filename, ext, file_path) in enumerate(audio_files):
-                self.files.append(file_path)
+            # 清空文件列表
+            self.files.clear()
 
-                # 勾选框列
-                checkbox_item = QTableWidgetItem()
-                checkbox_item.setFlags(
-                    Qt.ItemFlag.ItemIsEnabled |
-                    Qt.ItemFlag.ItemIsUserCheckable
-                )
-                checkbox_item.setCheckState(Qt.CheckState.Unchecked)
-                self.file_table.setItem(row, 0, checkbox_item)
+            # 清理旧目录的歌词缓存，避免缓存污染
+            self.lyrics_cache.clear()
+            self.current_lyrics = None
+            self.lyric_text.clear()
 
-                # 文件名列
-                filename_item = QTableWidgetItem(filename)
-                filename_item.setFlags(
-                    filename_item.flags() & ~Qt.ItemFlag.ItemIsEditable
-                )
-                filename_item.setData(Qt.ItemDataRole.UserRole, file_path)
-                filename_item.setToolTip(file_path)
-                self.file_table.setItem(row, 1, filename_item)
+            # 清除搜索状态（恢复显示所有文件）
+            self._clear_search()
 
-                # 格式列
-                format_item = QTableWidgetItem(ext.upper().lstrip('.'))
-                format_item.setFlags(
-                    format_item.flags() & ~Qt.ItemFlag.ItemIsEditable
-                )
-                self.file_table.setItem(row, 2, format_item)
+            # 遍历目录收集所有文件
+            audio_files = []
+            for root, dirs, filenames in os.walk(directory):
+                # 跳过 test 目录
+                if 'test' in dirs:
+                    dirs.remove('test')
 
-                # 大小列
-                try:
-                    size = os.path.getsize(file_path)
-                    size_str = self._format_file_size(size)
-                except OSError:
-                    size_str = "N/A"
-                size_item = QTableWidgetItem(size_str)
-                size_item.setFlags(
-                    size_item.flags() & ~Qt.ItemFlag.ItemIsEditable
-                )
-                self.file_table.setItem(row, 3, size_item)
-        finally:
-            self.file_table.setUpdatesEnabled(True)
+                for filename in filenames:
+                    ext = os.path.splitext(filename)[1].lower()
+                    if ext in supported_formats:
+                        file_path = os.path.join(root, filename)
+                        audio_files.append((filename, ext, file_path))
+
+            # 批量更新表格（禁用 UI 更新以提升性能）
+            self.file_table.setUpdatesEnabled(False)
+            try:
+                self.file_table.setRowCount(0)
+                self.file_table.setRowCount(len(audio_files))
+
+                for row, (filename, ext, file_path) in enumerate(audio_files):
+                    self.files.append(file_path)
+
+                    # 勾选框列
+                    checkbox_item = QTableWidgetItem()
+                    checkbox_item.setFlags(
+                        Qt.ItemFlag.ItemIsEnabled |
+                        Qt.ItemFlag.ItemIsUserCheckable
+                    )
+                    checkbox_item.setCheckState(Qt.CheckState.Unchecked)
+                    self.file_table.setItem(row, 0, checkbox_item)
+
+                    # 文件名列
+                    filename_item = QTableWidgetItem(filename)
+                    filename_item.setFlags(
+                        filename_item.flags() & ~Qt.ItemFlag.ItemIsEditable
+                    )
+                    filename_item.setData(Qt.ItemDataRole.UserRole, file_path)
+                    filename_item.setToolTip(file_path)
+                    self.file_table.setItem(row, 1, filename_item)
+
+                    # 格式列
+                    format_item = QTableWidgetItem(ext.upper().lstrip('.'))
+                    format_item.setFlags(
+                        format_item.flags() & ~Qt.ItemFlag.ItemIsEditable
+                    )
+                    self.file_table.setItem(row, 2, format_item)
+
+                    # 大小列
+                    try:
+                        size = os.path.getsize(file_path)
+                        size_str = self._format_file_size(size)
+                    except OSError:
+                        size_str = "N/A"
+                    size_item = QTableWidgetItem(size_str)
+                    size_item.setFlags(
+                        size_item.flags() & ~Qt.ItemFlag.ItemIsEditable
+                    )
+                    self.file_table.setItem(row, 3, size_item)
+            finally:
+                self.file_table.setUpdatesEnabled(True)
+        except Exception as e:
+            self.logger.exception(f"Error in _scan_audio_files: {e}")
+            MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _format_file_size(self, size_bytes: int) -> str:
         """
@@ -938,31 +949,42 @@ class MusicManagerPage(QWidget):
         如果选中了多个文件，则进行批量编辑。
         包含文件占用重试机制，自动重试最多 3 次。
         """
-        if not self.current_file and not self.selected_files:
-            MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
-            return
-
-        # 收集元数据
-        metadata = {
-            'title': self.title_edit.text(),
-            'artist': self.artist_edit.text(),
-            'album': self.album_edit.text(),
-            'year': self.year_edit.text(),
-            'genre': self.genre_edit.text(),
-        }
-
         try:
+            if not self.current_file and not self.selected_files:
+                MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
+                return
+
+            # 收集元数据
+            metadata = {
+                'title': self.title_edit.text(),
+                'artist': self.artist_edit.text(),
+                'album': self.album_edit.text(),
+                'year': self.year_edit.text(),
+                'genre': self.genre_edit.text(),
+            }
+
             if self.selected_files:
-                # 批量编辑
-                results = self.metadata_manager.batch_edit(
-                    self.selected_files, metadata
-                )
-                success_count = sum(1 for v in results.values() if v)
-                MessageBox(
-                    tr("success"),
-                    f"{tr('metadata_save_success')}\n{tr('success_count').format(count=success_count)}",
-                    self
-                ).exec()
+                # 批量编辑 — 每个文件独立处理，一个失败不影响其他
+                success_list = []
+                fail_list = []
+                for file_path in self.selected_files:
+                    try:
+                        ok = self.metadata_manager.write_metadata(file_path, metadata)
+                        if ok:
+                            success_list.append(file_path)
+                        else:
+                            fail_list.append(file_path)
+                    except Exception as item_exc:
+                        self.logger.exception(f"保存元数据失败: {file_path}: {item_exc}")
+                        fail_list.append(file_path)
+
+                if success_list:
+                    msg = f"{tr('metadata_save_success')}\n{tr('success_count').format(count=len(success_list))}"
+                    if fail_list:
+                        msg += f"\n{tr('fail_count').format(count=len(fail_list))}"
+                    MessageBox(tr("success"), msg, self).exec()
+                else:
+                    MessageBox(tr("errors_occurred"), tr("metadata_save_failed"), self).exec()
             elif self.current_file:
                 # 单文件编辑 - 包含文件占用重试机制
                 max_retries = 3
@@ -992,6 +1014,7 @@ class MusicManagerPage(QWidget):
                 else:
                     MessageBox(tr("errors_occurred"), tr("metadata_save_failed"), self).exec()
         except Exception as e:
+            self.logger.exception(f"Error in _on_save_metadata: {e}")
             MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _on_change_cover_from_file(self) -> None:
@@ -1000,33 +1023,38 @@ class MusicManagerPage(QWidget):
 
         打开文件选择对话框，选择图片文件作为封面。
         """
-        if not self.current_file:
-            MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
-            return
+        try:
+            if not self.current_file:
+                MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
+                return
 
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            tr("select_image_file"),
-            "",
-            "Images (*.png *.jpg *.jpeg *.bmp);;All Files (*)"
-        )
+            file_path, _ = QFileDialog.getOpenFileName(
+                self,
+                tr("select_image_file"),
+                "",
+                "Images (*.png *.jpg *.jpeg *.bmp);;All Files (*)"
+            )
 
-        if file_path:
-            try:
-                with open(file_path, 'rb') as f:
-                    cover_data = f.read()
+            if file_path:
+                try:
+                    with open(file_path, 'rb') as f:
+                        cover_data = f.read()
 
-                success = self.metadata_manager.set_cover(
-                    self.current_file, cover_data
-                )
+                    success = self.metadata_manager.set_cover(
+                        self.current_file, cover_data
+                    )
 
-                if success:
-                    self._display_cover(cover_data)
-                    MessageBox(tr("success"), tr("cover_updated"), self).exec()
-                else:
-                    MessageBox(tr("errors_occurred"), tr("cover_update_failed"), self).exec()
-            except Exception as e:
-                MessageBox(tr("errors_occurred"), str(e), self).exec()
+                    if success:
+                        self._display_cover(cover_data)
+                        MessageBox(tr("success"), tr("cover_updated"), self).exec()
+                    else:
+                        MessageBox(tr("errors_occurred"), tr("cover_update_failed"), self).exec()
+                except Exception as e:
+                    self.logger.exception(f"Error in _on_change_cover_from_file (inner): {e}")
+                    MessageBox(tr("errors_occurred"), str(e), self).exec()
+        except Exception as e:
+            self.logger.exception(f"Error in _on_change_cover_from_file: {e}")
+            MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _on_change_cover_from_url(self) -> None:
         """
@@ -1034,34 +1062,39 @@ class MusicManagerPage(QWidget):
 
         弹出输入对话框，输入图片 URL 下载作为封面。
         """
-        if not self.current_file:
-            MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
-            return
+        try:
+            if not self.current_file:
+                MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
+                return
 
-        url, ok = QInputDialog.getText(
-            self,
-            tr("from_url"),
-            tr("enter_image_url")
-        )
+            url, ok = QInputDialog.getText(
+                self,
+                tr("from_url"),
+                tr("enter_image_url")
+            )
 
-        if ok and url:
-            try:
-                import requests
-                response = requests.get(url, timeout=10)
-                response.raise_for_status()
+            if ok and url:
+                try:
+                    import requests
+                    response = requests.get(url, timeout=10)
+                    response.raise_for_status()
 
-                cover_data = response.content
-                success = self.metadata_manager.set_cover(
-                    self.current_file, cover_data
-                )
+                    cover_data = response.content
+                    success = self.metadata_manager.set_cover(
+                        self.current_file, cover_data
+                    )
 
-                if success:
-                    self._display_cover(cover_data)
-                    MessageBox(tr("success"), tr("cover_updated"), self).exec()
-                else:
-                    MessageBox(tr("errors_occurred"), tr("cover_update_failed"), self).exec()
-            except Exception as e:
-                MessageBox(tr("errors_occurred"), str(e), self).exec()
+                    if success:
+                        self._display_cover(cover_data)
+                        MessageBox(tr("success"), tr("cover_updated"), self).exec()
+                    else:
+                        MessageBox(tr("errors_occurred"), tr("cover_update_failed"), self).exec()
+                except Exception as e:
+                    self.logger.exception(f"Error in _on_change_cover_from_url (inner): {e}")
+                    MessageBox(tr("errors_occurred"), str(e), self).exec()
+        except Exception as e:
+            self.logger.exception(f"Error in _on_change_cover_from_url: {e}")
+            MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _on_get_lyrics(self) -> None:
         """
@@ -1070,15 +1103,19 @@ class MusicManagerPage(QWidget):
         从选中的提供商获取当前文件的歌词。
         使用单首模式，弹出搜索结果选择对话框。
         """
-        if not self.current_file:
-            MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
-            return
+        try:
+            if not self.current_file:
+                MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
+                return
 
-        # 通过当前索引获取提供商名称
-        current_index = self.provider_combo.currentIndex()
-        provider = self._provider_list[current_index] if 0 <= current_index < len(self._provider_list) else 'netease'
-        # 单首模式：batch_mode=False（弹出选择对话框）
-        self._start_lyric_fetch([self.current_file], provider, batch_mode=False)
+            # 通过当前索引获取提供商名称
+            current_index = self.provider_combo.currentIndex()
+            provider = self._provider_list[current_index] if 0 <= current_index < len(self._provider_list) else 'netease'
+            # 单首模式：batch_mode=False（弹出选择对话框）
+            self._start_lyric_fetch([self.current_file], provider, batch_mode=False)
+        except Exception as e:
+            self.logger.exception(f"Error in _on_get_lyrics: {e}")
+            MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _on_batch_get_lyrics(self) -> None:
         """
@@ -1111,39 +1148,45 @@ class MusicManagerPage(QWidget):
             provider (str): 歌词提供商名称
             batch_mode (bool): 是否为批量模式（默认 False）
         """
-        # 重置进度
-        self.lyric_progress.setValue(0)
-        self.get_lyric_btn.setEnabled(False)
-        self.batch_get_lyric_btn.setEnabled(False)
+        try:
+            # 重置进度
+            self.lyric_progress.setValue(0)
+            self.get_lyric_btn.setEnabled(False)
+            self.batch_get_lyric_btn.setEnabled(False)
 
-        # 对于网易云和酷狗，需要先选择歌曲
-        if provider in ['netease', 'kugou'] and len(file_paths) > 0:
-            self._pending_file_paths = file_paths
-            self._pending_provider = provider
-            self._batch_mode = batch_mode
+            # 对于网易云和酷狗，需要先选择歌曲
+            if provider in ['netease', 'kugou'] and len(file_paths) > 0:
+                self._pending_file_paths = file_paths
+                self._pending_provider = provider
+                self._batch_mode = batch_mode
 
-            if batch_mode:
-                self._batch_current_index = 0
-                self._batch_results = {}
-                self._process_current_batch_file()
-            else:
-                self._start_search_and_show_dialog(file_paths[0], provider)
-            return
+                if batch_mode:
+                    self._batch_current_index = 0
+                    self._batch_results = {}
+                    self._process_current_batch_file()
+                else:
+                    self._start_search_and_show_dialog(file_paths[0], provider)
+                return
 
-        # 其他提供商直接获取歌词
-        self.lyric_worker = LyricWorker(
-            file_paths=file_paths,
-            provider=provider
-        )
+            # 其他提供商直接获取歌词
+            self.lyric_worker = LyricWorker(
+                file_paths=file_paths,
+                provider=provider
+            )
 
-        # 连接信号
-        self.lyric_worker.progress_updated.connect(self._on_lyric_progress)
-        self.lyric_worker.lyric_fetched.connect(self._on_lyric_fetched)
-        self.lyric_worker.finished_all.connect(self._on_lyric_finished)
-        self.lyric_worker.error_occurred.connect(self._on_lyric_error)
+            # 连接信号
+            self.lyric_worker.progress_updated.connect(self._on_lyric_progress)
+            self.lyric_worker.lyric_fetched.connect(self._on_lyric_fetched)
+            self.lyric_worker.finished_all.connect(self._on_lyric_finished)
+            self.lyric_worker.error_occurred.connect(self._on_lyric_error)
 
-        # 启动线程
-        self.lyric_worker.start()
+            # 启动线程
+            self.lyric_worker.start()
+        except Exception as e:
+            self.logger.exception(f"Error in _start_lyric_fetch: {e}")
+            self.get_lyric_btn.setEnabled(True)
+            self.batch_get_lyric_btn.setEnabled(True)
+            MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _process_current_batch_file(self) -> None:
         """
@@ -1589,56 +1632,61 @@ class MusicManagerPage(QWidget):
         将当前歌词编辑器中的歌词嵌入到当前文件。
         根据嵌入模式选择器决定仅嵌入文件或同时生成 LRC 文件。
         """
-        if not self.current_file:
-            MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
-            return
-
-        lyrics_text = self.lyric_text.toPlainText()
-        if not lyrics_text:
-            MessageBox(tr("no_lyrics_found"), tr("get_lyrics"), self).exec()
-            return
-
-        # 获取嵌入模式
-        mode_index = self.embed_mode_combo.currentIndex()
-        mode = 'embed_and_lrc' if mode_index == 1 else 'embed_only'
-
         try:
-            success = self.lyric_manager.embed_lyrics(
-                self.current_file,
-                lyrics_text,
-                'lrc',
-                mode=mode
-            )
+            if not self.current_file:
+                MessageBox(tr("no_file_selected"), tr("select_files"), self).exec()
+                return
 
-            if success:
-                self.lyrics_cache.pop(self.current_file, None)
-                verified = self.lyric_manager.extract_lyrics(self.current_file)
-                if verified:
-                    verified_text = verified.get('synced_lyrics', '') or verified.get('plain_lyrics', '')
-                    if lyrics_text.strip() != verified_text.strip():
-                        self.logger.warning(f"嵌入验证失败: 文件中的歌词与预期不一致")
-                        self.current_lyrics = verified
-                        self.lyrics_cache[self.current_file] = verified
-                        synced = verified.get('synced_lyrics', '')
-                        plain = verified.get('plain_lyrics', '')
-                        self.lyric_text.setText(synced or plain)
-                        MessageBox(
-                            tr("errors_occurred"),
-                            tr("lyric_embed_verify_failed"),
-                            self
-                        ).exec()
-                        return
-                self.current_lyrics = {
-                    'synced_lyrics': lyrics_text,
-                    'plain_lyrics': lyrics_text,
-                }
-                if mode == 'embed_and_lrc':
-                    MessageBox(tr("success"), tr("lyric_embed_success") + "\n" + tr("embed_and_lrc_desc"), self).exec()
+            lyrics_text = self.lyric_text.toPlainText()
+            if not lyrics_text:
+                MessageBox(tr("no_lyrics_found"), tr("get_lyrics"), self).exec()
+                return
+
+            # 获取嵌入模式
+            mode_index = self.embed_mode_combo.currentIndex()
+            mode = 'embed_and_lrc' if mode_index == 1 else 'embed_only'
+
+            try:
+                success = self.lyric_manager.embed_lyrics(
+                    self.current_file,
+                    lyrics_text,
+                    'lrc',
+                    mode=mode
+                )
+
+                if success:
+                    self.lyrics_cache.pop(self.current_file, None)
+                    verified = self.lyric_manager.extract_lyrics(self.current_file)
+                    if verified:
+                        verified_text = verified.get('synced_lyrics', '') or verified.get('plain_lyrics', '')
+                        if lyrics_text.strip() != verified_text.strip():
+                            self.logger.warning(f"嵌入验证失败: 文件中的歌词与预期不一致")
+                            self.current_lyrics = verified
+                            self.lyrics_cache[self.current_file] = verified
+                            synced = verified.get('synced_lyrics', '')
+                            plain = verified.get('plain_lyrics', '')
+                            self.lyric_text.setText(synced or plain)
+                            MessageBox(
+                                tr("errors_occurred"),
+                                tr("lyric_embed_verify_failed"),
+                                self
+                            ).exec()
+                            return
+                    self.current_lyrics = {
+                        'synced_lyrics': lyrics_text,
+                        'plain_lyrics': lyrics_text,
+                    }
+                    if mode == 'embed_and_lrc':
+                        MessageBox(tr("success"), tr("lyric_embed_success") + "\n" + tr("embed_and_lrc_desc"), self).exec()
+                    else:
+                        MessageBox(tr("success"), tr("lyric_embed_success"), self).exec()
                 else:
-                    MessageBox(tr("success"), tr("lyric_embed_success"), self).exec()
-            else:
-                MessageBox(tr("errors_occurred"), tr("lyric_embed_failed"), self).exec()
+                    MessageBox(tr("errors_occurred"), tr("lyric_embed_failed"), self).exec()
+            except Exception as e:
+                self.logger.exception(f"Error in _on_embed_lyrics (inner): {e}")
+                MessageBox(tr("errors_occurred"), str(e), self).exec()
         except Exception as e:
+            self.logger.exception(f"Error in _on_embed_lyrics: {e}")
             MessageBox(tr("errors_occurred"), str(e), self).exec()
 
     def _on_save_lyrics(self) -> None:

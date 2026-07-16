@@ -11,6 +11,7 @@ auto_tag/acoustid_recognize.py
 auto_tag/audio_recognize.py
 auto_tag/music_library_manager.py
 auto_tag/netease_recognize.py
+auto_tag/version.py
 auto_tag/converter/__init__.py
 auto_tag/converter/config.py
 auto_tag/converter/converter.py
@@ -38,6 +39,7 @@ auto_tag/gui/i18n/locales/__init__.py
 auto_tag/gui/i18n/locales/en.json
 auto_tag/gui/i18n/locales/zh.json
 auto_tag/gui/pages/__init__.py
+auto_tag/gui/pages/about_page.py
 auto_tag/gui/pages/converter_page.py
 auto_tag/gui/pages/editor_page.py
 auto_tag/gui/pages/home_page.py
@@ -60,6 +62,7 @@ tests/test_audio_editor.py
 tests/test_audio_format_quality.py
 tests/test_audio_recognize_refactored.py
 tests/test_cache_and_rate_limit.py
+tests/test_chinese_english_split.py
 tests/test_cloudsearch_api.py
 tests/test_converter.py
 tests/test_converter_page.py
@@ -70,6 +73,7 @@ tests/test_cover_preview_dialog.py
 tests/test_custom_format.py
 tests/test_editor_overwrite.py
 tests/test_editor_presets.py
+tests/test_enhanced_extraction.py
 tests/test_fallback_search.py
 tests/test_ffmpeg_silent_mode.py
 tests/test_filename_check.py
@@ -101,3 +105,4 @@ tests/test_sound_endpoints.py
 tests/test_sound_final.py
 tests/test_sound_search_feature.py
 tests/test_sound_type_search.py
+tests/test_update_audio_tags.py

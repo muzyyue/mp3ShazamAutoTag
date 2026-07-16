@@ -8,7 +8,10 @@
 
 from __future__ import annotations
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -736,7 +739,10 @@ class ConverterPage(QWidget):
 
         将当前选择的格式列表保存到配置文件中。
         """
-        config.set_converter_input_formats(self.config.supported_input_formats)
+        try:
+            config.set_converter_input_formats(self.config.supported_input_formats)
+        except Exception as e:
+            logger.exception(f"Error saving format config: {e}")
 
     def _scan_files(self, directory: str) -> list[str]:
         """
@@ -748,23 +754,27 @@ class ConverterPage(QWidget):
         Returns:
             list[str]: 找到的文件路径列表
         """
-        files = []
+        try:
+            files = []
 
-        # 遍历目录
-        for root, dirs, filenames in os.walk(directory):
-            # 跳过 test 目录
-            if 'test' in dirs:
-                dirs.remove('test')
+            # 遍历目录
+            for root, dirs, filenames in os.walk(directory):
+                # 跳过 test 目录
+                if 'test' in dirs:
+                    dirs.remove('test')
 
-            for filename in filenames:
-                # 获取文件扩展名
-                ext = os.path.splitext(filename)[1].lower().lstrip('.')
+                for filename in filenames:
+                    # 获取文件扩展名
+                    ext = os.path.splitext(filename)[1].lower().lstrip('.')
 
-                # 检查是否为支持的格式
-                if ext in self.config.supported_input_formats:
-                    files.append(os.path.join(root, filename))
+                    # 检查是否为支持的格式
+                    if ext in self.config.supported_input_formats:
+                        files.append(os.path.join(root, filename))
 
-        return files
+            return files
+        except Exception as e:
+            logger.exception(f"Error scanning files in {directory}: {e}")
+            return []
 
     def _format_file_size(self, size_bytes: int) -> str:
         """
@@ -796,64 +806,68 @@ class ConverterPage(QWidget):
         )
 
         if directory:
-            self.input_dir = directory
-            self.input_entry.setText(directory)
-
-            # 扫描文件
-            self.files = self._scan_files(directory)
-
-            # 批量更新表格（禁用 UI 更新以提升性能）
-            self.file_table.setUpdatesEnabled(False)
             try:
-                self.file_table.setRowCount(0)
-                self.file_table.setRowCount(len(self.files))
+                self.input_dir = directory
+                self.input_entry.setText(directory)
 
-                for row, file_path in enumerate(self.files):
-                    # 勾选框列
-                    checkbox_item = QTableWidgetItem()
-                    checkbox_item.setFlags(
-                        Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable
-                    )
-                    checkbox_item.setCheckState(Qt.CheckState.Checked)
-                    self.file_table.setItem(row, 0, checkbox_item)
+                # 扫描文件
+                self.files = self._scan_files(directory)
 
-                    # 文件名列
-                    filename = os.path.basename(file_path)
-                    filename_item = QTableWidgetItem(filename)
-                    filename_item.setFlags(filename_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                    # 存储完整路径
-                    filename_item.setData(Qt.ItemDataRole.UserRole, file_path)
-                    self.file_table.setItem(row, 1, filename_item)
+                # 批量更新表格（禁用 UI 更新以提升性能）
+                self.file_table.setUpdatesEnabled(False)
+                try:
+                    self.file_table.setRowCount(0)
+                    self.file_table.setRowCount(len(self.files))
 
-                    # 格式列
-                    ext = os.path.splitext(file_path)[1].upper().lstrip('.')
-                    format_item = QTableWidgetItem(ext)
-                    format_item.setFlags(format_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                    self.file_table.setItem(row, 2, format_item)
+                    for row, file_path in enumerate(self.files):
+                        # 勾选框列
+                        checkbox_item = QTableWidgetItem()
+                        checkbox_item.setFlags(
+                            Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable
+                        )
+                        checkbox_item.setCheckState(Qt.CheckState.Checked)
+                        self.file_table.setItem(row, 0, checkbox_item)
 
-                    # 大小列
-                    try:
-                        size = os.path.getsize(file_path)
-                        size_str = self._format_file_size(size)
-                    except OSError:
-                        size_str = "未知"
-                    size_item = QTableWidgetItem(size_str)
-                    size_item.setFlags(size_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                    self.file_table.setItem(row, 3, size_item)
+                        # 文件名列
+                        filename = os.path.basename(file_path)
+                        filename_item = QTableWidgetItem(filename)
+                        filename_item.setFlags(filename_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        # 存储完整路径
+                        filename_item.setData(Qt.ItemDataRole.UserRole, file_path)
+                        self.file_table.setItem(row, 1, filename_item)
 
-                    # 状态列
-                    status_item = QTableWidgetItem("待转换")
-                    status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
-                    status_item.setForeground(Qt.GlobalColor.gray)
-                    self.file_table.setItem(row, 4, status_item)
-            finally:
-                self.file_table.setUpdatesEnabled(True)
+                        # 格式列
+                        ext = os.path.splitext(file_path)[1].upper().lstrip('.')
+                        format_item = QTableWidgetItem(ext)
+                        format_item.setFlags(format_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        self.file_table.setItem(row, 2, format_item)
 
-            # 更新状态标签
-            if self.files:
-                self.status_label.setText(f"找到 {len(self.files)} 个文件")
-            else:
-                self.status_label.setText("未找到支持的文件")
+                        # 大小列
+                        try:
+                            size = os.path.getsize(file_path)
+                            size_str = self._format_file_size(size)
+                        except OSError:
+                            size_str = "未知"
+                        size_item = QTableWidgetItem(size_str)
+                        size_item.setFlags(size_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        self.file_table.setItem(row, 3, size_item)
+
+                        # 状态列
+                        status_item = QTableWidgetItem("待转换")
+                        status_item.setFlags(status_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                        status_item.setForeground(Qt.GlobalColor.gray)
+                        self.file_table.setItem(row, 4, status_item)
+                finally:
+                    self.file_table.setUpdatesEnabled(True)
+
+                # 更新状态标签
+                if self.files:
+                    self.status_label.setText(f"找到 {len(self.files)} 个文件")
+                else:
+                    self.status_label.setText("未找到支持的文件")
+            except Exception as e:
+                logger.exception(f"Error browsing directory {directory}: {e}")
+                self.status_label.setText("扫描目录时出错")
 
     def _on_browse_output(self) -> None:
         """
@@ -861,16 +875,19 @@ class ConverterPage(QWidget):
 
         打开文件夹选择对话框，选择输出目录。
         """
-        directory = QFileDialog.getExistingDirectory(
-            self,
-            "选择目录",
-            "",
-            QFileDialog.Option.ShowDirsOnly
-        )
+        try:
+            directory = QFileDialog.getExistingDirectory(
+                self,
+                "选择目录",
+                "",
+                QFileDialog.Option.ShowDirsOnly
+            )
 
-        if directory:
-            self.output_dir = directory
-            self.output_entry.setText(directory)
+            if directory:
+                self.output_dir = directory
+                self.output_entry.setText(directory)
+        except Exception as e:
+            logger.exception(f"Error browsing output directory: {e}")
 
     def _start_conversion(self) -> None:
         """
@@ -879,14 +896,18 @@ class ConverterPage(QWidget):
         创建工作线程并启动转换任务。
         """
         # 检查是否有选中的文件
-        selected_files = []
-        for row in range(self.file_table.rowCount()):
-            item = self.file_table.item(row, 0)
-            if item and item.checkState() == Qt.CheckState.Checked:
-                filename_item = self.file_table.item(row, 1)
-                if filename_item:
-                    file_path = filename_item.data(Qt.ItemDataRole.UserRole)
-                    selected_files.append(file_path)
+        try:
+            selected_files = []
+            for row in range(self.file_table.rowCount()):
+                item = self.file_table.item(row, 0)
+                if item and item.checkState() == Qt.CheckState.Checked:
+                    filename_item = self.file_table.item(row, 1)
+                    if filename_item:
+                        file_path = filename_item.data(Qt.ItemDataRole.UserRole)
+                        selected_files.append(file_path)
+        except Exception as e:
+            logger.exception(f"Error collecting selected files: {e}")
+            return
 
         if not selected_files:
             MessageBox(
@@ -896,42 +917,63 @@ class ConverterPage(QWidget):
             ).exec()
             return
 
-        # 确定输出目录
-        output_dir = self.output_dir if self.output_dir else self.input_dir
+        try:
+            # 确定输出目录
+            output_dir = self.output_dir if self.output_dir else self.input_dir
 
-        # 获取格式和质量设置
-        format_text = self.format_combo.currentText()
-        quality_text = self.quality_combo.currentText()
+            # 获取格式和质量设置
+            format_text = self.format_combo.currentText()
+            quality_text = self.quality_combo.currentText()
 
-        output_format = self.format_map.get(format_text, OutputFormat.MP3)
-        quality_preset = self.quality_map.get(quality_text, QualityPreset.HIGH)
+            output_format = self.format_map.get(format_text, OutputFormat.MP3)
+            quality_preset = self.quality_map.get(quality_text, QualityPreset.HIGH)
 
-        # 更新配置
-        self.config.set_output_format(output_format.value, quality_preset)
+            # 更新配置
+            self.config.set_output_format(output_format.value, quality_preset)
+        except Exception as e:
+            logger.exception(f"Error reading conversion settings: {e}")
+            return
 
-        # 重置进度
-        self.progress_bar.setValue(0)
-        self.status_label.setText("正在转换...")
+        try:
+            # 重置进度
+            self.progress_bar.setValue(0)
+            self.status_label.setText("正在转换...")
 
-        # 更新按钮状态
-        self.start_btn.setEnabled(False)
-        self.stop_btn.setEnabled(True)
+            # 更新按钮状态
+            self.start_btn.setEnabled(False)
+            self.stop_btn.setEnabled(True)
+        except Exception as e:
+            logger.exception(f"Error updating UI for conversion start: {e}")
+            return
 
-        # 创建工作线程
-        self.worker = ConverterWorker(
-            files=selected_files,
-            output_dir=output_dir,
-            config=self.config
-        )
+        try:
+            # 创建工作线程
+            self.worker = ConverterWorker(
+                files=selected_files,
+                output_dir=output_dir,
+                config=self.config
+            )
 
-        # 连接信号
-        self.worker.progress_updated.connect(self._on_progress_updated)
-        self.worker.file_converted.connect(self._on_file_converted)
-        self.worker.finished_all.connect(self._on_finished_all)
-        self.worker.error_occurred.connect(self._on_error_occurred)
+            # 连接信号
+            self.worker.progress_updated.connect(self._on_progress_updated)
+            self.worker.file_converted.connect(self._on_file_converted)
+            self.worker.finished_all.connect(self._on_finished_all)
+            self.worker.error_occurred.connect(self._on_error_occurred)
+        except Exception as e:
+            logger.exception(f"Error creating converter worker: {e}")
+            self.start_btn.setEnabled(True)
+            self.stop_btn.setEnabled(False)
+            self.status_label.setText("创建转换任务失败")
+            return
 
-        # 启动线程
-        self.worker.start()
+        try:
+            # 启动线程
+            self.worker.start()
+        except Exception as e:
+            logger.exception(f"Error starting converter worker: {e}")
+            self.start_btn.setEnabled(True)
+            self.stop_btn.setEnabled(False)
+            self.status_label.setText("启动转换失败")
 
     def _stop_conversion(self) -> None:
         """
@@ -971,22 +1013,25 @@ class ConverterPage(QWidget):
             success (bool): 是否成功
             error (str): 错误信息
         """
-        # 查找对应的表格行
-        for row in range(self.file_table.rowCount()):
-            filename_item = self.file_table.item(row, 1)
-            if filename_item:
-                file_path = filename_item.data(Qt.ItemDataRole.UserRole)
-                if file_path == path:
-                    # 更新状态列
-                    status_item = self.file_table.item(row, 4)
-                    if status_item:
-                        if success:
-                            status_item.setText("成功")
-                            status_item.setForeground(Qt.GlobalColor.green)
-                        else:
-                            status_item.setText("失败")
-                            status_item.setForeground(Qt.GlobalColor.red)
-                    break
+        try:
+            # 查找对应的表格行
+            for row in range(self.file_table.rowCount()):
+                filename_item = self.file_table.item(row, 1)
+                if filename_item:
+                    file_path = filename_item.data(Qt.ItemDataRole.UserRole)
+                    if file_path == path:
+                        # 更新状态列
+                        status_item = self.file_table.item(row, 4)
+                        if status_item:
+                            if success:
+                                status_item.setText("成功")
+                                status_item.setForeground(Qt.GlobalColor.green)
+                            else:
+                                status_item.setText("失败")
+                                status_item.setForeground(Qt.GlobalColor.red)
+                        break
+        except Exception as e:
+            logger.exception(f"Error updating file converted status for {path}: {e}")
 
     def _on_finished_all(self, results: list) -> None:
         """
@@ -1033,11 +1078,17 @@ class ConverterPage(QWidget):
         Args:
             error_msg (str): 错误信息文本
         """
-        MessageBox("错误", error_msg, self).exec()
+        try:
+            MessageBox("错误", error_msg, self).exec()
+        except Exception as e:
+            logger.exception(f"Error showing error dialog: {e}")
 
-        # 更新按钮状态
-        self.start_btn.setEnabled(True)
-        self.stop_btn.setEnabled(False)
+        try:
+            # 更新按钮状态
+            self.start_btn.setEnabled(True)
+            self.stop_btn.setEnabled(False)
+        except Exception as e:
+            logger.exception(f"Error updating button state after error: {e}")
 
     def _on_check_all(self) -> None:
         """全选：将所有文件的勾选状态设为选中"""
@@ -1062,16 +1113,32 @@ class ConverterPage(QWidget):
         """
         from PySide6.QtWidgets import QMessageBox
 
-        # 检查是否有数据需要清除
-        if not self.files and self.file_table.rowCount() == 0:
-            return
+        try:
+            # 检查是否有数据需要清除
+            if not self.files and self.file_table.rowCount() == 0:
+                return
 
-        # 如果正在转换，先停止
-        if self.worker and self.worker.isRunning():
+            # 如果正在转换，先停止
+            if self.worker and self.worker.isRunning():
+                reply = QMessageBox.question(
+                    self,
+                    tr("confirm_stop_conversion"),
+                    tr("confirm_stop_conversion_desc"),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
+                )
+
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
+
+                self.worker.stop()
+                self.worker.wait()
+
+            # 显示确认对话框
             reply = QMessageBox.question(
                 self,
-                tr("confirm_stop_conversion"),
-                tr("confirm_stop_conversion_desc"),
+                tr("confirm_clear_data"),
+                tr("confirm_clear_data_desc"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
@@ -1079,43 +1146,26 @@ class ConverterPage(QWidget):
             if reply != QMessageBox.StandardButton.Yes:
                 return
 
-            self.worker.stop()
-            self.worker.wait()
+            # 清空文件列表
+            self.files.clear()
 
-        # 显示确认对话框
-        reply = QMessageBox.question(
-            self,
-            tr("confirm_clear_data"),
-            tr("confirm_clear_data_desc"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
+            # 清空表格
+            self.file_table.setRowCount(0)
 
-        if reply != QMessageBox.StandardButton.Yes:
-            return
+            # 重置进度条
+            self.progress_bar.setValue(0)
 
-        # 清空文件列表
-        self.files.clear()
+            # 更新状态标签
+            self.status_label.setText(tr("conversion_in_progress"))
 
-        # 清空表格
-        self.file_table.setRowCount(0)
+            # 重置按钮状态
+            self.start_btn.setEnabled(True)
+            self.stop_btn.setEnabled(False)
+        except Exception as e:
+            logger.exception(f"Error clearing data: {e}")
 
-        # 重置进度条
-        self.progress_bar.setValue(0)
-
-        # 更新状态标签
-        self.status_label.setText(tr("conversion_in_progress"))
-
-        # 重置按钮状态
-        self.start_btn.setEnabled(True)
-        self.stop_btn.setEnabled(False)
-
-    def refresh_texts(self) -> None:
-        """
-        刷新页面文本
-
-        当语言切换时调用此方法，更新所有 UI 文本为当前语言的翻译。
-        """
+    def _refresh_input_output_texts(self) -> None:
+        """刷新输入输出区域的文本"""
         # 更新占位符文本
         self.input_entry.setPlaceholderText(tr("select_directory"))
         self.output_entry.setPlaceholderText(tr("select_directory"))
@@ -1124,6 +1174,8 @@ class ConverterPage(QWidget):
         self.input_label.setText(tr("input_directory"))
         self.output_label.setText(tr("output_directory"))
 
+    def _refresh_format_texts(self) -> None:
+        """刷新格式设置区域的文本"""
         # 更新格式设置区域标签文本
         self.format_label.setText(tr("output_format"))
         self.quality_label.setText(tr("quality_preset"))
@@ -1133,6 +1185,8 @@ class ConverterPage(QWidget):
             tr("check"), tr("file_name"), tr("format"), tr("size"), tr("status")
         ])
 
+    def _refresh_button_texts(self) -> None:
+        """刷新按钮和标题的文本"""
         # 更新标题
         self.table_title.setText(tr("converter_file_list"))
 
@@ -1145,6 +1199,8 @@ class ConverterPage(QWidget):
         self.stop_btn.setText(tr("stop_conversion"))
         self.clear_data_btn.setText(tr("clear_data"))
 
+    def _refresh_filter_texts(self) -> None:
+        """刷新格式过滤区域的文本"""
         # 更新格式过滤区域的文本
         if self.filter_title_label:
             self.filter_title_label.setText(tr("filter_formats"))
@@ -1161,6 +1217,8 @@ class ConverterPage(QWidget):
         if self.deselect_all_video_btn:
             self.deselect_all_video_btn.setText(tr("deselect_all_video"))
 
+    def _refresh_custom_format_texts(self) -> None:
+        """刷新自定义格式区域的文本"""
         # 更新自定义格式区域的文本
         if hasattr(self, 'custom_ext_label') and self.custom_ext_label:
             self.custom_ext_label.setText(tr("extension") + ":")
@@ -1180,6 +1238,21 @@ class ConverterPage(QWidget):
         # 刷新自定义格式列表（显示当前语言的格式信息）
         if hasattr(self, '_refresh_custom_format_list'):
             self._refresh_custom_format_list()
+
+    def refresh_texts(self) -> None:
+        """
+        刷新页面文本
+
+        当语言切换时调用此方法，更新所有 UI 文本为当前语言的翻译。
+        """
+        try:
+            self._refresh_input_output_texts()
+            self._refresh_format_texts()
+            self._refresh_button_texts()
+            self._refresh_filter_texts()
+            self._refresh_custom_format_texts()
+        except Exception as e:
+            logger.exception(f"Error refreshing texts: {e}")
 
     def _apply_list_theme(self) -> None:
         """

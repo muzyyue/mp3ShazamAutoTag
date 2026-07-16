@@ -524,14 +524,14 @@ class TestLyricFetchBoundary:
     测试歌词获取功能的边界条件和特殊情况
     """
 
-    def test_special_characters_in_filename_chinese(self, lyric_manager):
-        """
-        TC-B-001: 测试文件名包含中文
+    def _assert_fetch_lyrics_with_suffix(self, lyric_manager, suffix):
+        """Create temp file with given suffix and verify fetch_lyrics succeeds.
 
         Args:
-            lyric_manager: LyricManager实例
+            lyric_manager: LyricManager instance
+            suffix: Filename suffix (e.g. '_歌曲名.mp3')
         """
-        with tempfile.NamedTemporaryFile(suffix="_歌曲名.mp3", delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as f:
             temp_file = f.name
             f.write(b"fake mp3 content")
 
@@ -556,72 +556,18 @@ class TestLyricFetchBoundary:
         finally:
             if os.path.exists(temp_file):
                 os.unlink(temp_file)
+
+    def test_special_characters_in_filename_chinese(self, lyric_manager):
+        """TC-B-001: 测试文件名包含中文"""
+        self._assert_fetch_lyrics_with_suffix(lyric_manager, "_歌曲名.mp3")
 
     def test_special_characters_in_filename_japanese(self, lyric_manager):
-        """
-        TC-B-002: 测试文件名包含日文
-
-        Args:
-            lyric_manager: LyricManager实例
-        """
-        with tempfile.NamedTemporaryFile(suffix="_花に亡霊.mp3", delete=False) as f:
-            temp_file = f.name
-            f.write(b"fake mp3 content")
-
-        try:
-            with patch("auto_tag.lyric.manager.get_provider_api") as mock_get_provider_api:
-                with patch("lrxy.utils.load_audio") as mock_load_audio:
-                    with patch("lrxy.utils.iter_files") as mock_iter_files:
-                        mock_provider_api = MagicMock()
-                        mock_get_provider_api.return_value = mock_provider_api
-                        mock_audio = MagicMock()
-                        mock_load_audio.return_value = mock_audio
-                        mock_iter_files.return_value = [{
-                            'success': True,
-                            'data': {
-                                'plainLyrics': 'Test lyrics',
-                                'syncedLyrics': '[00:00.00]Test lyrics'
-                            }
-                        }]
-
-                        result = lyric_manager.fetch_lyrics(temp_file, provider="lrclib")
-                        assert result is not None
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+        """TC-B-002: 测试文件名包含日文"""
+        self._assert_fetch_lyrics_with_suffix(lyric_manager, "_花に亡霊.mp3")
 
     def test_special_characters_in_filename_symbols(self, lyric_manager):
-        """
-        TC-B-003: 测试文件名包含特殊符号
-
-        Args:
-            lyric_manager: LyricManager实例
-        """
-        with tempfile.NamedTemporaryFile(suffix="_#test@song$.mp3", delete=False) as f:
-            temp_file = f.name
-            f.write(b"fake mp3 content")
-
-        try:
-            with patch("auto_tag.lyric.manager.get_provider_api") as mock_get_provider_api:
-                with patch("lrxy.utils.load_audio") as mock_load_audio:
-                    with patch("lrxy.utils.iter_files") as mock_iter_files:
-                        mock_provider_api = MagicMock()
-                        mock_get_provider_api.return_value = mock_provider_api
-                        mock_audio = MagicMock()
-                        mock_load_audio.return_value = mock_audio
-                        mock_iter_files.return_value = [{
-                            'success': True,
-                            'data': {
-                                'plainLyrics': 'Test lyrics',
-                                'syncedLyrics': '[00:00.00]Test lyrics'
-                            }
-                        }]
-
-                        result = lyric_manager.fetch_lyrics(temp_file, provider="lrclib")
-                        assert result is not None
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+        """TC-B-003: 测试文件名包含特殊符号"""
+        self._assert_fetch_lyrics_with_suffix(lyric_manager, "_#test@song$.mp3")
 
     @patch("lrxy.utils.load_audio")
     def test_lyrics_with_special_characters(self, mock_load_audio, lyric_manager, temp_audio_file):
@@ -720,38 +666,8 @@ class TestLyricFetchBoundary:
         assert result is True
 
     def test_very_long_filename(self, lyric_manager):
-        """
-        TC-B-009: 测试超长文件名
-
-        Args:
-            lyric_manager: LyricManager实例
-        """
-        long_name = "x" * 200 + ".mp3"
-        with tempfile.NamedTemporaryFile(suffix=long_name, delete=False) as f:
-            temp_file = f.name
-            f.write(b"fake mp3 content")
-
-        try:
-            with patch("auto_tag.lyric.manager.get_provider_api") as mock_get_provider_api:
-                with patch("lrxy.utils.load_audio") as mock_load_audio:
-                    with patch("lrxy.utils.iter_files") as mock_iter_files:
-                        mock_provider_api = MagicMock()
-                        mock_get_provider_api.return_value = mock_provider_api
-                        mock_audio = MagicMock()
-                        mock_load_audio.return_value = mock_audio
-                        mock_iter_files.return_value = [{
-                            'success': True,
-                            'data': {
-                                'plainLyrics': 'Test lyrics',
-                                'syncedLyrics': '[00:00.00]Test lyrics'
-                            }
-                        }]
-
-                        result = lyric_manager.fetch_lyrics(temp_file, provider="lrclib")
-                        assert result is not None
-        finally:
-            if os.path.exists(temp_file):
-                os.unlink(temp_file)
+        """TC-B-009: 测试超长文件名"""
+        self._assert_fetch_lyrics_with_suffix(lyric_manager, "x" * 200 + ".mp3")
 
     def test_audio_file_without_metadata(self, lyric_manager, temp_audio_file):
         """
