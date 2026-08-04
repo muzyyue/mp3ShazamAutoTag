@@ -14,6 +14,7 @@ import re
 from typing import Any
 
 import eyed3
+import eyed3.id3  # 显式导入子模块 (eyed3 0.9.9 懒加载, 否则 eyed3.id3 不可用)
 from mutagen import File
 from mutagen.flac import Picture, FLAC
 from mutagen.mp4 import MP4
@@ -400,7 +401,8 @@ class MetadataManager:
         if 'genre' in metadata:
             audio.tag.genre = metadata['genre']
         
-        audio.tag.save()
+        # Windows 资源管理器只解析 ID3v2.3, 必须显式指定版本
+        audio.tag.save(version=eyed3.id3.ID3_V2_3)
         self.logger.info(f"成功写入 MP3 元数据: {file_path}")
         return True
     
@@ -840,7 +842,8 @@ class MetadataManager:
         
         # 设置封面图片（picture_type=3 表示 Front cover）
         audio.tag.images.set(3, cover_data, mime_type, 'cover')
-        audio.tag.save()
+        # Windows 资源管理器只解析 ID3v2.3 的 APIC 帧, 必须显式指定版本
+        audio.tag.save(version=eyed3.id3.ID3_V2_3)
         
         self.logger.info(f"成功设置 MP3 封面: {file_path}")
         return True

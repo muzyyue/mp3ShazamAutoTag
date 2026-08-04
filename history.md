@@ -1,5 +1,20 @@
 # 项目变更历史
 
+## v0.6.4 (2026-08-04) Windows 封面预览兼容修复 + 转换页 ID3 版本选择
+- **问题修复（ID3v2.3 兼容）**：
+  - eyed3 0.9.9 默认写 ID3v2.4 标签，Windows 资源管理器只解析 ID3v2.3 的 APIC 封面帧
+  - 导致"先转换→嵌元数据"的 MP3 在资源管理器中无法预览封面
+  - 修复所有 eyed3 MP3 标签写入路径，强制 ID3v2.3（`tags.save(version=ID3_V2_3)`）
+  - 修复 mutagen 歌词嵌入路径，强制 `save(v2_version=3)` 避免保留原 v2.4 版本
+  - 修复 eyed3 子模块懒加载问题：`import eyed3` 不加载 `eyed3.id3`，添加显式导入
+- **功能新增（转换页 ID3 版本选择）**：
+  - 转换页质量预设后新增"标签版本"下拉框（ID3v2.3 默认 / ID3v2.4 可选）
+  - ConverterConfig 新增 `id3_version` 字段，MP3 输出时自动添加 `-id3v2_version` 参数
+  - 端到端验证：config 参数经 ffmpeg 实际转换确认 v2.3→`(2,3,0)` / v2.4→`(2,4,0)`
+- **新增启动脚本**：
+  - `launcher_hidden.py` / `start.bat` / `start_Imusic.vbs`：Windows 后台启动器（隐藏控制台窗口）
+- **涉及文件**: `auto_tag/audio_recognize/_tags.py`, `auto_tag/converter/metadata_manager.py`, `auto_tag/lyric/lyric_embedder.py`, `auto_tag/converter/config.py`, `auto_tag/gui/pages/converter_page.py`, `auto_tag/gui/i18n/locales/zh.json`, `auto_tag/gui/i18n/locales/en.json`, `tests/test_id3_windows_compat.py`, `tests/test_converter.py`, `auto_tag/version.py`, `pyproject.toml`, `launcher_hidden.py`(新增), `start.bat`(新增), `start_Imusic.vbs`(新增)
+
 ## v0.6.3 (2026-05-12) 彻底修复打包应用版本号显示为 unknown 的问题
 - **问题现象**：
   - v0.6.2 修复后，从 GitHub Release 下载的应用仍然显示「版本 unknown」

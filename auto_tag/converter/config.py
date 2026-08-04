@@ -163,6 +163,7 @@ class ConverterConfig:
     quality_preset: QualityPreset = QualityPreset.HIGH
     preserve_metadata: bool = True
     overwrite_existing: bool = False
+    id3_version: str = "2.3"
     filename_template: str = "{artist} - {title}"
     supported_input_formats: list[str] = field(default_factory=lambda: [
         "mp3", "flac", "aac", "ogg", "wav", "m4a",
@@ -205,6 +206,14 @@ class ConverterConfig:
         
         if self.output_format.channels:
             args.extend(["-ac", str(self.output_format.channels)])
+        
+        # ID3 标签版本 (仅 MP3 输出有效, 控制 MP3 标签产出版本)
+        # 默认 ID3v2.3 以兼容 Windows 资源管理器封面预览; 可选 ID3v2.4
+        if self.output_format.format == OutputFormat.MP3:
+            if self.id3_version == "2.4":
+                args.extend(["-id3v2_version", "4"])
+            else:
+                args.extend(["-id3v2_version", "3"])
         
         return args
     

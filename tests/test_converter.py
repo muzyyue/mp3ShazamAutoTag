@@ -150,6 +150,30 @@ class TestConverterConfig:
         assert config.quality_preset == QualityPreset.HIGH
         assert config.preserve_metadata is True
         assert config.overwrite_existing is False
+        assert config.id3_version == "2.3"
+
+    def test_id3_version_default_ffmpeg_args(self):
+        """测试默认 ID3v2.3 时 MP3 输出带 -id3v2_version 3"""
+        config = ConverterConfig()
+        assert config.id3_version == "2.3"
+        args = config.get_ffmpeg_args()
+        assert '-id3v2_version' in args
+        assert args[args.index('-id3v2_version') + 1] == '3'
+
+    def test_id3_version_v24_ffmpeg_args(self):
+        """测试 ID3v2.4 时 MP3 输出带 -id3v2_version 4"""
+        config = ConverterConfig()
+        config.id3_version = "2.4"
+        args = config.get_ffmpeg_args()
+        assert '-id3v2_version' in args
+        assert args[args.index('-id3v2_version') + 1] == '4'
+
+    def test_id3_version_not_applied_to_non_mp3(self):
+        """测试非 MP3 输出不带 -id3v2_version 参数"""
+        config = ConverterConfig()
+        config.set_output_format("flac", QualityPreset.HIGH)
+        args = config.get_ffmpeg_args()
+        assert '-id3v2_version' not in args
     
     def test_quality_presets(self):
         """测试质量预设"""

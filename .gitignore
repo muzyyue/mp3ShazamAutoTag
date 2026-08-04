@@ -10,6 +10,7 @@ dist/
 *.log
 
 .trae/
+.omo/
 # 测试文件
 # tests/
 # history.md 已改为追踪，用于记录项目变更历史

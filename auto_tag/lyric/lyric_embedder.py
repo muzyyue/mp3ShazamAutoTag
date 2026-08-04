@@ -138,7 +138,8 @@ class LyricEmbedder:
                 del audio.tags[k]
 
             audio.tags.add(USLT(encoding=3, lang='eng', desc='Lyrics', text=lyrics))
-            audio.save()
+            # Windows 资源管理器只解析 ID3v2.3, 强制降到 v2.3 (避免 preserve 原 v2.4)
+            audio.tags.save(file_path, v2_version=3)
             self.logger.info(f"成功嵌入歌词到 MP3 (mutagen): {file_path}")
 
         except Exception as e:

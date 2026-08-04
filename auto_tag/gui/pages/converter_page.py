@@ -95,6 +95,12 @@ class ConverterPage(QWidget):
             "Lossless": QualityPreset.LOSSLESS,
         }
 
+        # ID3 标签版本显示文本 -> 配置值映射 (仅 MP3 输出生效)
+        self.id3_version_map = {
+            "ID3v2.3": "2.3",
+            "ID3v2.4": "2.4",
+        }
+
         # 格式选择复选框字典
         self.audio_format_checkboxes: dict[str, CheckBox] = {}
         self.video_format_checkboxes: dict[str, CheckBox] = {}
@@ -196,6 +202,17 @@ class ConverterPage(QWidget):
         self.quality_combo.setFixedHeight(36)
         self.quality_combo.setFixedWidth(120)
         format_layout.addWidget(self.quality_combo)
+
+        # ID3 标签版本选择 (仅 MP3 输出生效, 默认 ID3v2.3 兼容 Windows 封面预览)
+        self.id3_label = BodyLabel(tr("id3_version"))
+        format_layout.addWidget(self.id3_label)
+
+        self.id3_combo = ComboBox()
+        self.id3_combo.addItems(list(self.id3_version_map.keys()))
+        self.id3_combo.setCurrentIndex(0)  # 默认选择 ID3v2.3
+        self.id3_combo.setFixedHeight(36)
+        self.id3_combo.setFixedWidth(120)
+        format_layout.addWidget(self.id3_combo)
 
         format_layout.addStretch()
 
@@ -930,6 +947,10 @@ class ConverterPage(QWidget):
 
             # 更新配置
             self.config.set_output_format(output_format.value, quality_preset)
+
+            # ID3 标签版本 (默认 ID3v2.3, 仅 MP3 输出生效)
+            id3_text = self.id3_combo.currentText()
+            self.config.id3_version = self.id3_version_map.get(id3_text, "2.3")
         except Exception as e:
             logger.exception(f"Error reading conversion settings: {e}")
             return
@@ -1179,6 +1200,7 @@ class ConverterPage(QWidget):
         # 更新格式设置区域标签文本
         self.format_label.setText(tr("output_format"))
         self.quality_label.setText(tr("quality_preset"))
+        self.id3_label.setText(tr("id3_version"))
 
         # 更新表头
         self.file_table.setHorizontalHeaderLabels([

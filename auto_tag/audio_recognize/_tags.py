@@ -14,6 +14,7 @@ import os
 from urllib.request import urlopen
 
 import eyed3
+import eyed3.id3  # 显式导入子模块 (eyed3 0.9.9 懒加载, 否则 eyed3.id3 不可用)
 from mutagen import File
 from mutagen.flac import Picture
 from mutagen.id3 import TALB, TCON, TDRC, TIT2, TPE1
@@ -64,7 +65,8 @@ def update_mp3_cover_art(file_path: str, cover_url: str, trace: bool) -> None:
         )
         img = urlopen(req, timeout=10).read()
         audio.tag.images.set(3, img, "image/jpeg", "cover")
-        audio.tag.save()
+        # Windows 资源管理器只解析 ID3v2.3 的 APIC 帧, 必须显式指定版本
+        audio.tag.save(version=eyed3.id3.ID3_V2_3)
         logger.info(f"[update_mp3_cover_art] ✓ Cover art saved successfully for {os.path.basename(file_path)}")
     except Exception as e:
         logger.error(f"[update_mp3_cover_art] ✗ Failed to save cover art: {e}", exc_info=True)
@@ -120,7 +122,8 @@ def update_mp3_tags(
             audio.tag.genre = genre
             audio.tag.genre_id = None
         logger.info(f"[update_mp3_tags] Tag values set, saving...")
-        audio.tag.save()
+        # Windows 资源管理器只解析 ID3v2.3, 必须显式指定版本
+        audio.tag.save(version=eyed3.id3.ID3_V2_3)
         logger.info(f"[update_mp3_tags] ✓ Tags saved successfully for {os.path.basename(file_path)}")
     except Exception as e:
         logger.error(f"[update_mp3_tags] ✗ Failed to save tags: {e}", exc_info=True)
