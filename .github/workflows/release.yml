@@ -123,23 +123,23 @@ jobs:
 
           if ($match.Success) {
             $changelog = $match.Value.Trim()
-            # Escape backticks for PowerShell (critical!)
-            $changelog = $changelog -replace '`', '``'
           } else {
             $changelog = "See [history.md](https://github.com/${{ github.repository }}/blob/main/history.md) for details."
           }
 
-          # Output using heredoc syntax for multiline values
-          echo "changelog<<EOF" >> $env:GITHUB_OUTPUT
-          echo $changelog >> $env:GITHUB_OUTPUT
-          echo "EOF" >> $env:GITHUB_OUTPUT
+          # Write changelog to a file to avoid PowerShell parsing issues
+          # with special characters (quotes, arrows, backticks) in the markdown.
+          $changelogPath = Join-Path $env:RUNNER_TEMP "changelog.md"
+          $changelog | Out-File -FilePath $changelogPath -Encoding UTF8
+          echo "changelog_path=$changelogPath" >> $env:GITHUB_OUTPUT
 
       - name: Generate release notes
         id: release_notes
         shell: pwsh
         run: |
           $version = "${{ steps.get_version.outputs.version }}" -replace '^v', ''
-          $changelog = "${{ steps.changelog.outputs.changelog }}"
+          $changelogPath = "${{ steps.changelog.outputs.changelog_path }}"
+          $changelog = Get-Content $changelogPath -Raw -Encoding UTF8
 
           # Build release notes with proper escaping
           $notes = "## Imusic v$version`n`n"
