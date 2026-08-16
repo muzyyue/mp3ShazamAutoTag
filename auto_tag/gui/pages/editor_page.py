@@ -38,6 +38,7 @@ from qfluentwidgets import (
     ScrollArea,
     SubtitleLabel,
     TableWidget,
+    IconWidget,
     FluentIcon as FIF,
     isDarkTheme,
     qconfig,
@@ -150,7 +151,10 @@ class EditorPage(ScrollArea):
         self.search_edit.textChanged.connect(self._on_search_text_changed)
         title_hbox.addWidget(self.search_edit)
 
-        # 文件计数标签
+        # 文件计数（Fluent 图标 + 计数标签）
+        self._file_count_icon = IconWidget(FIF.CHECKBOX)
+        self._file_count_icon.setFixedSize(16, 16)
+        title_hbox.addWidget(self._file_count_icon)
         self.file_count_label = BodyLabel("")
         title_hbox.addWidget(self.file_count_label)
 
@@ -406,8 +410,10 @@ class EditorPage(ScrollArea):
         self.preset_combo.setFixedHeight(36)
         presets = self.preset_manager.get_all_presets()
         for preset in presets:
-            display_name = preset["icon"] + " " + list(preset["name"].values())[0]
-            self.preset_combo.addItem(display_name, userData=preset)
+            # icon 字段为 FluentIcon 成员名（如 'PHONE'），无效值回退 SETTING
+            icon_name = preset.get("icon", "")
+            icon = getattr(FIF, icon_name, FIF.SETTING) if icon_name else FIF.SETTING
+            self.preset_combo.addItem(list(preset["name"].values())[0], icon, userData=preset)
         self.preset_combo.currentIndexChanged.connect(self._on_preset_changed)
         preset_hbox.addWidget(self.preset_combo)
 
@@ -509,11 +515,11 @@ class EditorPage(ScrollArea):
 
         keyword = self.search_edit.text().strip()
         if keyword:
-            # 搜索模式：显示 "✓2/5/233"（选中/可见/总数）
-            self.file_count_label.setText(f"✓{selected}/{visible}/{total}")
+            # 搜索模式：显示 "2/5/233"（选中/可见/总数），图标表示选中状态
+            self.file_count_label.setText(f"{selected}/{visible}/{total}")
         elif selected > 0 and selected < visible:
-            # 有部分选中：显示 "✓10/233"
-            self.file_count_label.setText(f"✓{selected}/{total}")
+            # 有部分选中：显示 "10/233"
+            self.file_count_label.setText(f"{selected}/{total}")
         else:
             # 无搜索且全选或全不选
             self.file_count_label.setText(f"({total})")

@@ -1281,13 +1281,9 @@ class MusicManagerPage(QWidget):
         btn_layout.addStretch()
         layout.addLayout(btn_layout)
 
-        # 加载动画（使用内置的旋转动画）
-        try:
-            from qfluentwidgets import FluentIcon
-            loading_icon_label.setPixmap(FluentIcon.SYNC.fluentIcon().pixmap(48, 48))
-        except Exception:
-            loading_icon_label.setText("🔍")
-            loading_icon_label.setStyleSheet("font-size: 36px;")
+        # 加载动画（Fluent SYNC 图标）
+        from qfluentwidgets import FluentIcon
+        loading_icon_label.setPixmap(FluentIcon.SYNC.icon().pixmap(48, 48))
 
         # 创建搜索工作线程
         self.search_worker = SongSearchWorker(

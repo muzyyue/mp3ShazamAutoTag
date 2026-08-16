@@ -47,6 +47,8 @@ from qfluentwidgets import (
     InfoBarIcon,
     InfoBar,
     PushButton,
+    FluentIcon,
+    IconWidget,
 )
 
 from auto_tag.gui.config import config, AppConfig
@@ -295,16 +297,23 @@ class SettingsPage(QWidget):
         cookie_container.addLayout(cookie_layout)
         cookie_container.addWidget(self._qq_music_cookie_edit)
 
-        # 验证状态提示标签
+        # 验证状态提示（Fluent 图标 + 标签）
+        validation_hbox = QHBoxLayout()
+        validation_hbox.setSpacing(6)
+        self._cookie_validation_icon = IconWidget(FluentIcon.CANCEL)
+        self._cookie_validation_icon.setFixedSize(16, 16)
+        self._cookie_validation_icon.hide()
         self._cookie_validation_label = BodyLabel("")
         self._cookie_validation_label.setWordWrap(True)
-        cookie_container.addWidget(self._cookie_validation_label)
+        validation_hbox.addWidget(self._cookie_validation_icon)
+        validation_hbox.addWidget(self._cookie_validation_label)
+        cookie_container.addLayout(validation_hbox)
 
         # ===== 新增：刷新登录按钮 (2026-05-05) =====
         refresh_button_layout = QHBoxLayout()
         refresh_button_layout.addStretch()
 
-        self._refresh_cookie_button = PushButton(tr("settings_page.refresh_cookie_button"))
+        self._refresh_cookie_button = PushButton(FluentIcon.SYNC, tr("settings_page.refresh_cookie_button"))
         self._refresh_cookie_button.setToolTip(tr("settings_page.refresh_cookie_tooltip"))
         self._refresh_cookie_button.setFixedWidth(120)
         self._refresh_cookie_button.clicked.connect(self._on_refresh_cookie_clicked)
@@ -530,9 +539,30 @@ class SettingsPage(QWidget):
         self._qq_music_cookie_label.setVisible(visible)
         self._qq_music_cookie_edit.setVisible(visible)
         self._cookie_validation_label.setVisible(visible)
+        # 状态图标仅在有状态文本时显示
+        self._cookie_validation_icon.setVisible(
+            visible and self._cookie_validation_label.text() != ""
+        )
         self._refresh_cookie_button.setVisible(visible)  # 新增：刷新按钮也跟随显示
 
         logger.debug(f"QQ Music cookie input visibility updated: {'visible' if visible else 'hidden'}")
+
+    def _set_cookie_validation(self, icon: Optional[FluentIcon], text: str, color: Optional[str] = None) -> None:
+        """设置Cookie验证状态提示（Fluent 图标 + 文本 + 颜色）
+
+        Args:
+            icon: Fluent 图标；None 表示清空提示并隐藏图标
+            text: 状态文本
+            color: 文本颜色（green/red/orange/blue），None 则不修改颜色
+        """
+        self._cookie_validation_label.setText(text)
+        if icon is None:
+            self._cookie_validation_icon.hide()
+            return
+        self._cookie_validation_icon.setIcon(icon)
+        self._cookie_validation_icon.show()
+        if color is not None:
+            self._cookie_validation_label.setStyleSheet(f"color: {color};")
 
     def _on_qq_music_cookie_changed(self) -> None:
         """
@@ -549,7 +579,7 @@ class SettingsPage(QWidget):
 
         if not cookie_text:
             # 空内容，清除提示并清空配置
-            self._cookie_validation_label.setText("")
+            self._set_cookie_validation(None, "")
             try:
                 config.set_qq_music_cookie("")
             except ValueError:
@@ -561,19 +591,16 @@ class SettingsPage(QWidget):
 
         if is_valid:
             # 验证通过，保存到配置
-            self._cookie_validation_label.setText("✓ Cookie格式正确")
-            self._cookie_validation_label.setStyleSheet("color: green;")
+            self._set_cookie_validation(FluentIcon.ACCEPT, "Cookie格式正确", "green")
             try:
                 config.set_qq_music_cookie(cookie_text)
                 logger.info("QQ Music cookie validated and saved successfully")
             except ValueError as e:
-                self._cookie_validation_label.setText(f"✗ 保存失败: {str(e)}")
-                self._cookie_validation_label.setStyleSheet("color: red;")
+                self._set_cookie_validation(FluentIcon.CANCEL, f"保存失败: {str(e)}", "red")
                 logger.error(f"Failed to save QQ Music cookie: {e}")
         else:
             # 验证失败，显示错误信息
-            self._cookie_validation_label.setText(f"✗ {error_msg}")
-            self._cookie_validation_label.setStyleSheet("color: red;")
+            self._set_cookie_validation(FluentIcon.CANCEL, error_msg, "red")
             logger.debug(f"QQ Music cookie validation failed: {error_msg}")
 
     def _on_refresh_cookie_clicked(self) -> None:
@@ -596,16 +623,14 @@ class SettingsPage(QWidget):
 
         # 前置条件检查：必须有Cookie才能刷新
         if not current_cookie:
-            self._cookie_validation_label.setText("✗ 请先输入Cookie再刷新")
-            self._cookie_validation_label.setStyleSheet("color: orange;")
+            self._set_cookie_validation(FluentIcon.CANCEL, "请先输入Cookie再刷新", "orange")
             logger.warning("Refresh cookie attempted without any cookie set")
             return
 
         # 验证当前Cookie格式
         is_valid, validation_error = validate_qq_music_cookie(current_cookie)
         if not is_valid:
-            self._cookie_validation_label.setText(f"✗ 当前Cookie格式无效，无法刷新: {validation_error}")
-            self._cookie_validation_label.setStyleSheet("color: red;")
+            self._set_cookie_validation(FluentIcon.CANCEL, f"当前Cookie格式无效，无法刷新: {validation_error}", "red")
             return
 
         # 禁用按钮防止重复点击
@@ -613,8 +638,7 @@ class SettingsPage(QWidget):
         self._refresh_cookie_button.setText(tr("settings_page.refreshing_status"))
 
         # 显示正在刷新的状态
-        self._cookie_validation_label.setText("⏳ 正在刷新登录状态...")
-        self._cookie_validation_label.setStyleSheet("color: blue;")
+        self._set_cookie_validation(FluentIcon.SYNC, "正在刷新登录状态...", "blue")
 
         logger.info(f"[QQMusic] Starting cookie refresh... Cookie: {mask_cookie_for_logging(current_cookie)}")
 
@@ -649,8 +673,7 @@ class SettingsPage(QWidget):
 
             if status != 200:
                 error_msg = f"HTTP请求失败 ({status})"
-                self._cookie_validation_label.setText(f"✗ {error_msg}")
-                self._cookie_validation_label.setStyleSheet("color: red;")
+                self._set_cookie_validation(FluentIcon.CANCEL, error_msg, "red")
                 logger.warning(f"[QQMusic] Refresh failed with HTTP {status}")
                 return
 
@@ -658,24 +681,21 @@ class SettingsPage(QWidget):
                 data = json_lib.loads(raw_data)
             except json_lib.JSONDecodeError as e:
                 error_msg = f"响应解析失败: {str(e)}"
-                self._cookie_validation_label.setText(f"✗ {error_msg}")
-                self._cookie_validation_label.setStyleSheet("color: red;")
+                self._set_cookie_validation(FluentIcon.CANCEL, error_msg, "red")
                 logger.error(f"[QQMusic] Failed to parse refresh response: {e}")
                 return
 
             api_code = data.get('code', -1)
 
             if api_code == 0:
-                success_msg = "✓ 登录状态已刷新，有效期延长"
-                self._cookie_validation_label.setText(success_msg)
-                self._cookie_validation_label.setStyleSheet("color: green;")
+                success_msg = "登录状态已刷新，有效期延长"
+                self._set_cookie_validation(FluentIcon.ACCEPT, success_msg, "green")
                 logger.info("[QQMusic] Cookie refreshed successfully")
                 
             elif api_code == 301 or api_code == 100020:
                 # Cookie已过期或失效 - 显示引导对话框 (2026-05-05 新增)
                 error_msg = "Cookie已过期或失效"
-                self._cookie_validation_label.setText(f"✗ {error_msg}")
-                self._cookie_validation_label.setStyleSheet("color: orange;")
+                self._set_cookie_validation(FluentIcon.CANCEL, error_msg, "orange")
                 logger.warning("[QQMusic] Cookie expired or invalid during refresh")
                 
                 # 弹出引导对话框，帮助用户重新获取Cookie
@@ -688,14 +708,12 @@ class SettingsPage(QWidget):
             else:
                 error_detail = data.get('msg', f'未知错误 (code={api_code})')
                 error_msg = f"刷新失败: {error_detail}"
-                self._cookie_validation_label.setText(f"✗ {error_msg}")
-                self._cookie_validation_label.setStyleSheet("color: red;")
+                self._set_cookie_validation(FluentIcon.CANCEL, error_msg, "red")
                 logger.warning(f"[QQMusic] Refresh API returned error: {api_code} - {error_detail}")
 
         except Exception as e:
             error_msg = f"网络异常: {type(e).__name__}"
-            self._cookie_validation_label.setText(f"✗ {error_msg}")
-            self._cookie_validation_label.setStyleSheet("color: red;")
+            self._set_cookie_validation(FluentIcon.CANCEL, error_msg, "red")
             logger.error(f"[QQMusic] Exception during cookie refresh: {e}", exc_info=True)
 
         finally:

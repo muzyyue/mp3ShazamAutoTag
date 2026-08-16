@@ -45,6 +45,7 @@ from qfluentwidgets import (
     FluentIcon as FIF,
     SingleDirectionScrollArea,
     isDarkTheme,
+    IconWidget,
 )
 
 from auto_tag.gui.i18n import tr
@@ -170,7 +171,9 @@ class SongSearchResultDialog(MessageBoxBase):
         self.resultCountLabel = BodyLabel()
         self.resultCountLabel.setObjectName("resultCount")
 
-        # 搜索关键词标签
+        # 搜索关键词图标 + 标签
+        self._keyword_icon = IconWidget(FIF.SEARCH)
+        self._keyword_icon.setFixedSize(16, 16)
         self.keywordLabel = BodyLabel()
         self.keywordLabel.setObjectName("keywordLabel")
 
@@ -278,8 +281,12 @@ class SongSearchResultDialog(MessageBoxBase):
         title_layout.addWidget(self.resultCountLabel)
         layout.addWidget(title_container)
 
-        # === 搜索关键词区域（第二层）===
-        layout.addWidget(self.keywordLabel)
+        # === 搜索关键词区域（第二层：Fluent 图标 + 标签）===
+        keyword_row = QHBoxLayout()
+        keyword_row.setSpacing(6)
+        keyword_row.addWidget(self._keyword_icon)
+        keyword_row.addWidget(self.keywordLabel)
+        layout.addLayout(keyword_row)
 
         # === 表格内容区域（第三层 - 主要内容）===
         scroll_area = SingleDirectionScrollArea()
@@ -670,13 +677,15 @@ class SongSearchResultDialog(MessageBoxBase):
         self._keyword = keyword
         self._provider = provider
 
-        # 更新标签文本（使用更友好的格式）
+        # 更新标签文本（Fluent 图标 + 关键词）
         if keyword:
-            search_icon = "🔍"
+            self._keyword_icon.show()
+            self.keywordLabel.show()
             self.keywordLabel.setText(
-                f"{search_icon}  {tr('search.keyword')}: {keyword}"
+                f"{tr('search.keyword')}: {keyword}"
             )
         else:
+            self._keyword_icon.hide()
             self.keywordLabel.hide()
 
         count_text = f"{len(songs)} {tr('search.results_found')}"
@@ -719,8 +728,9 @@ class SongSearchResultDialog(MessageBoxBase):
             duration_item.setForeground(QColor(100, 100, 100))
             self.song_table.setItem(row, 3, duration_item)
 
-            # 歌词状态（初始为加载中 ⏳）
-            lyric_item = QTableWidgetItem("⏳")
+            # 歌词状态（初始为加载中，Fluent SYNC 图标）
+            lyric_item = QTableWidgetItem()
+            lyric_item.setIcon(FIF.SYNC.icon())
             lyric_item.setTextAlignment(
                 Qt.AlignmentFlag.AlignCenter |
                 Qt.AlignmentFlag.AlignVCenter
@@ -775,10 +785,10 @@ class SongSearchResultDialog(MessageBoxBase):
         lyric_item = self.song_table.item(row, 4)
         if lyric_item:
             if has_lyric:
-                lyric_item.setText("✅")
+                lyric_item.setIcon(FIF.ACCEPT.icon())
                 lyric_item.setToolTip("有歌词")
             else:
-                lyric_item.setText("❌")
+                lyric_item.setIcon(FIF.CANCEL.icon())
                 lyric_item.setToolTip("无歌词")
 
     def _on_selection_changed(

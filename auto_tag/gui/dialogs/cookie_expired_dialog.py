@@ -30,11 +30,12 @@ from PySide6.QtWidgets import (
     QTextEdit,
 )
 from qfluentwidgets import (
-    Dialog,
+    MessageBoxBase,
     SubtitleLabel,
     BodyLabel,
     PrimaryPushButton,
     PushButton,
+    IconWidget,
     FluentIcon as FIcon,
     setFont,
     isDarkTheme,
@@ -43,21 +44,21 @@ from qfluentwidgets import (
 from auto_tag.gui.i18n import tr
 
 
-class CookieExpiredDialog(Dialog):
+class CookieExpiredDialog(MessageBoxBase):
     """
     QQ音乐Cookie失效引导对话框
-    
+
     当系统检测到QQ音乐Cookie已过期或失效时显示，
     引导用户前往 y.qq.com 重新获取Cookie。
-    
-    UI布局：
+
+    UI布局（Fluent 图标 + 文本）：
     ┌─────────────────────────────────────────────┐
-    │ ⚠️ Cookie已过期                              │ 标题
+    │ [CERTIFICATE] Cookie已过期                  │ 标题
     ├─────────────────────────────────────────────┤
     │                                             │
     │ 您的QQ音乐登录凭证已失效，需要重新获取。     │ 说明文字
     │                                             │
-    │ 📋 获取步骤：                                │ 步骤标题
+    │ [SCROLL] 获取步骤：                          │ 步骤标题
     │ 1. 点击下方按钮打开 QQ音乐                  │ 步骤列表
     │ 2. 登录您的 QQ 账号                         │
     │ 3. 按 F12 打开开发者工具                    │
@@ -65,7 +66,7 @@ class CookieExpiredDialog(Dialog):
     │ 5. 复制所有 Cookie 值                        │
     │ 6. 粘贴到设置页面的 Cookie 输入框            │
     │                                             │
-    │ [🔗 前往 QQ音乐 获取]   [我知道了]           │ 按钮
+    │ [LINK] 前往 QQ音乐 获取   [ACCEPT] 我知道了 │ 按钮
     └─────────────────────────────────────────────┘
     
     Attributes:
@@ -86,8 +87,9 @@ class CookieExpiredDialog(Dialog):
         Args:
             parent: 父窗口组件，用于居中显示和模态控制
         """
-        super().__init__(parent, title=tr("cookie_dialog.title"))
-        
+        # MessageBoxBase 签名: (parent)，与 SongSearchResultDialog 保持一致
+        super().__init__(parent)
+
         self._setup_ui()
         self._setup_style()
         self._setup_signals()
@@ -98,8 +100,8 @@ class CookieExpiredDialog(Dialog):
         
         创建所有子控件并按照设计稿排列
         """
-        # 主容器widget
-        self.widgetLayout = QVBoxLayout(self.widget)
+        # 主容器布局（复用 MessageBoxBase 提供的 viewLayout）
+        self.widgetLayout = self.viewLayout
         self.widgetLayout.setContentsMargins(20, 15, 20, 10)
         self.widgetLayout.setSpacing(12)
 
@@ -107,18 +109,18 @@ class CookieExpiredDialog(Dialog):
         title_layout = QHBoxLayout()
         title_layout.setSpacing(10)
         
-        self._warning_icon = QLabel("⚠️")
-        self._warning_icon.setStyleSheet("font-size: 28px;")
+        self._warning_icon = IconWidget(FIcon.CERTIFICATE)
+        self._warning_icon.setFixedSize(28, 28)
         title_layout.addWidget(self._warning_icon)
         
-        self._title_label = SubtitleLabel(tr("cookie_dialog.title"))
+        self._title_label = SubtitleLabel(tr("settings_page.cookie_dialog.title"))
         title_layout.addWidget(self._title_label)
         title_layout.addStretch()
         
         self.widgetLayout.addLayout(title_layout)
 
         # ===== 说明文字 =====
-        self._description_label = BodyLabel(tr("cookie_dialog.description"))
+        self._description_label = BodyLabel(tr("settings_page.cookie_dialog.description"))
         self._description_label.setWordWrap(True)
         self.widgetLayout.addWidget(self._description_label)
 
@@ -127,14 +129,20 @@ class CookieExpiredDialog(Dialog):
         separator.setStyleSheet("color: gray; margin: 5px 0;")
         self.widgetLayout.addWidget(separator)
 
-        # ===== 操作步骤标题 =====
-        self._steps_title = BodyLabel(tr("cookie_dialog.steps_title"))
+        # ===== 操作步骤标题（Fluent 图标 + 文本）=====
+        steps_title_layout = QHBoxLayout()
+        steps_title_layout.setSpacing(6)
+        self._steps_icon = IconWidget(FIcon.SCROLL)
+        self._steps_icon.setFixedSize(16, 16)
+        steps_title_layout.addWidget(self._steps_icon)
+        self._steps_title = BodyLabel(tr("settings_page.cookie_dialog.steps_title"))
         setFont(self._steps_title, 13)
         self._steps_title.setStyleSheet("font-weight: bold; margin-top: 8px;")
-        self.widgetLayout.addWidget(self._steps_title)
+        steps_title_layout.addWidget(self._steps_title)
+        self.widgetLayout.addLayout(steps_title_layout)
 
         # ===== 步骤列表（使用只读文本框）=====
-        steps_text = tr("cookie_dialog.steps_content")
+        steps_text = tr("settings_page.cookie_dialog.steps_content")
         self._steps_text_edit = QTextEdit()
         self._steps_text_edit.setPlainText(steps_text)
         self._steps_text_edit.setReadOnly(True)
@@ -151,10 +159,16 @@ class CookieExpiredDialog(Dialog):
         """)
         self.widgetLayout.addWidget(self._steps_text_edit)
 
-        # ===== 链接提示 =====
-        link_hint = BodyLabel(tr("cookie_dialog.link_hint"))
+        # ===== 链接提示（Fluent 图标 + 文本）=====
+        link_hint_layout = QHBoxLayout()
+        link_hint_layout.setSpacing(6)
+        hint_icon = IconWidget(FIcon.INFO)
+        hint_icon.setFixedSize(16, 16)
+        link_hint_layout.addWidget(hint_icon)
+        link_hint = BodyLabel(tr("settings_page.cookie_dialog.link_hint"))
         link_hint.setStyleSheet("color: #00a1d6; font-style: italic;")
-        self.widgetLayout.addWidget(link_hint)
+        link_hint_layout.addWidget(link_hint)
+        self.widgetLayout.addLayout(link_hint_layout)
 
         # 添加弹性空间
         self.widgetLayout.addStretch()
@@ -164,22 +178,22 @@ class CookieExpiredDialog(Dialog):
         button_layout.setSpacing(12)
 
         # 主按钮：前往QQ音乐
-        self._goto_button = PrimaryPushButton(FIcon.LINK, tr("cookie_dialog.goto_button"))
+        self._goto_button = PrimaryPushButton(FIcon.LINK, tr("settings_page.cookie_dialog.goto_button"))
         self._goto_button.setFixedWidth(180)
         self._goto_button.setCursor(Qt.PointingHandCursor)
         button_layout.addWidget(self._goto_button)
 
         # 次要按钮：关闭/我知道了
-        self._close_button = PushButton(FIcon.CHECKMARK, tr("cookie_dialog.close_button"))
+        self._close_button = PushButton(FIcon.ACCEPT, tr("settings_page.cookie_dialog.close_button"))
         self._close_button.setFixedWidth(120)
         self._close_button.setCursor(Qt.PointingHandCursor)
         button_layout.addWidget(self._close_button)
 
         self.widgetLayout.addLayout(button_layout)
 
-        # 设置对话框按钮（隐藏默认按钮）
-        self.yesButton.hide()
-        self.cancelButton.hide()
+        # 隐藏 MessageBoxBase 自带的默认按钮组（OK/Cancel），使用自定义按钮区域
+        self.hideYesButton()
+        self.hideCancelButton()
 
     def _setup_style(self) -> None:
         """
@@ -188,7 +202,6 @@ class CookieExpiredDialog(Dialog):
         根据当前主题（深色/浅色）调整颜色
         """
         if isDarkTheme():
-            self._warning_icon.setStyleSheet("font-size: 28px;")
             self._steps_text_edit.setStyleSheet("""
                 QTextEdit {
                     background-color: rgba(255, 255, 255, 10);

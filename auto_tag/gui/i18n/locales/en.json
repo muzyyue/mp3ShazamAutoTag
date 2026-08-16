@@ -45,7 +45,6 @@
   "converter_file_list": "File List",
   "output_format": "Output Format:",
   "quality_preset": "Quality Preset:",
-  "id3_version": "Tag Version:",
   "start_conversion": "Start Conversion",
   "stop_conversion": "Stop Conversion",
   "conversion_in_progress": "Waiting to start...",
@@ -241,17 +240,17 @@
     "qq_music_cookie_label": "User Cookie",
     "qq_music_cookie_placeholder": "Paste complete cookie string from y.qq.com...",
     "qq_music_cookie_tooltip": "Used for QQ Music API authentication, improves search quality and enables VIP content\n\nHow to get:\n1. Open https://y.qq.com and login\n2. Press F12 to open DevTools\n3. Go to Application → Cookies\n4. Copy all cookie values and paste here",
-    "refresh_cookie_button": "🔄 Refresh Login",
+    "refresh_cookie_button": "Refresh Login",
     "refresh_cookie_tooltip": "Extend QQ Music Cookie validity\n\nClicking will call QQ Music API to refresh login status,\navoiding frequent manual copy-paste of new Cookies.\n\nNote: If Cookie has expired, you need to re-obtain it from browser.",
-    "refreshing_status": "⏳ Refreshing...",
+    "refreshing_status": "Refreshing...",
     "cookie_dialog": {
-      "title": "⚠️ QQ Music Cookie Expired",
+      "title": "QQ Music Cookie Expired",
       "description": "Your QQ Music login credentials have expired and need to be renewed. Please follow the steps below to obtain a new cookie.",
-      "steps_title": "📋 Steps to Get New Cookie:",
+      "steps_title": "Steps to Get New Cookie:",
       "steps_content": "1. Click 'Go to QQ Music' button to open browser\n2. Login with your QQ account on y.qq.com\n3. Press F12 to open browser DevTools\n4. Switch to 'Application' tab in top menu\n5. Find 'Cookies' → 'https://y.qq.com' on left sidebar\n6. All cookies are shown on right side, press Ctrl+A to select all\n7. Press Ctrl+C to copy all cookie values\n8. Return to this app's settings page, paste into 'User Cookie' input field",
-      "link_hint": "💡 Tip: Make sure to include key fields like uin, qm_keyst, qqmusic_key when copying",
-      "goto_button": "🔗 Go to QQ Music",
-      "close_button": "✓ Got it"
+      "link_hint": "Tip: Make sure to include key fields like uin, qm_keyst, qqmusic_key when copying",
+      "goto_button": "Go to QQ Music",
+      "close_button": "Got it"
     },
     "validation": {
       "cookie_empty": "Cookie cannot be empty",
@@ -291,7 +290,6 @@
     "errors_occurred": "Errors Occurred",
     "output_format": "Output Format:",
     "quality_preset": "Quality Preset:",
-    "id3_version": "Tag Version:",
     "quality_low": "Low",
     "quality_medium": "Medium",
     "quality_high": "High",
@@ -404,10 +402,10 @@
       "title": "Duration Comparison",
       "actual": "Actual Song Duration",
       "lyric_total": "Total Lyric Duration",
-      "excellent_match": "✓ Duration perfect match",
-      "good_match": "✓ Duration roughly matches",
-      "warning": "⚠ Large duration difference, please confirm",
-      "mismatch": "✗ Duration difference too large, may not match",
+      "excellent_match": "Duration perfect match",
+      "good_match": "Duration roughly matches",
+      "warning": "Large duration difference, please confirm",
+      "mismatch": "Duration difference too large, may not match",
       "unknown": "Duration information unknown"
     },
     "sorted_by_match": "Sorted by match score",
@@ -492,11 +490,11 @@
     "edit_success_count": "Success: {count} files",
     "edit_fail_count": "Failed: {count} files",
     "presets": {
-      "ringtone": "📱 Ringtone",
-      "car_audio": "🚗 Car Audio",
-      "hifi_archive": "💾 HiFi Archive",
-      "podcast": "🎧 Podcast",
-      "music_share": "🎵 Music Share"
+      "ringtone": "Ringtone",
+      "car_audio": "Car Audio",
+      "hifi_archive": "HiFi Archive",
+      "podcast": "Podcast",
+      "music_share": "Music Share"
     },
     "preset_descriptions": {
       "ringtone": "Suitable for iPhone/Android ringtones (30s, with fade in/out)",

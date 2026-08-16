@@ -37,7 +37,6 @@
   "converter_file_list": "文件列表",
   "output_format": "输出格式：",
   "quality_preset": "质量预设：",
-  "id3_version": "标签版本：",
   "start_conversion": "开始转换",
   "stop_conversion": "停止转换",
   "conversion_in_progress": "等待开始转换...",
@@ -186,17 +185,17 @@
     "qq_music_cookie_label": "用户Cookie",
     "qq_music_cookie_placeholder": "请粘贴从 y.qq.com 获取的完整Cookie字符串...",
     "qq_music_cookie_tooltip": "用于QQ音乐API认证，可提升搜索质量并获取VIP内容\n\n获取方法：\n1. 打开 https://y.qq.com 并登录\n2. 按 F12 打开开发者工具\n3. 切换到 Application → Cookies\n4. 复制所有Cookie值粘贴到此处",
-    "refresh_cookie_button": "🔄 刷新登录",
+    "refresh_cookie_button": "刷新登录",
     "refresh_cookie_tooltip": "延长QQ音乐Cookie有效期\n\n点击后将调用QQ音乐API刷新登录状态，\n可以避免频繁手动复制粘贴新Cookie。\n\n注意：如果Cookie已过期，需要重新从浏览器获取。",
-    "refreshing_status": "⏳ 刷新中...",
+    "refreshing_status": "刷新中...",
     "cookie_dialog": {
-      "title": "⚠️ QQ音乐Cookie已过期",
+      "title": "QQ音乐Cookie已过期",
       "description": "您的QQ音乐登录凭证已失效，需要重新获取。请按照下方步骤操作，完成后即可继续使用QQ音乐搜索功能。",
-      "steps_title": "📋 获取新Cookie的步骤：",
+      "steps_title": "获取新Cookie的步骤：",
       "steps_content": "1. 点击「前往 QQ音乐 获取」按钮打开浏览器\n2. 使用 QQ 账号登录 y.qq.com\n3. 按 F12 键打开浏览器开发者工具\n4. 在顶部菜单切换到「Application」（应用程序）选项卡\n5. 左侧找到「Cookies」→「https://y.qq.com」\n6. 右侧列表显示所有 Cookie，按 Ctrl+A 全选\n7. 按 Ctrl+C 复制所有 Cookie 值\n8. 返回本软件设置页面，粘贴到「用户Cookie」输入框",
-      "link_hint": "💡 提示：复制时请确保包含 uin、qm_keyst、qqmusic_key 等关键字段",
-      "goto_button": "🔗 前往 QQ音乐 获取",
-      "close_button": "✓ 我知道了"
+      "link_hint": "提示：复制时请确保包含 uin、qm_keyst、qqmusic_key 等关键字段",
+      "goto_button": "前往 QQ音乐 获取",
+      "close_button": "我知道了"
     },
     "validation": {
       "cookie_empty": "Cookie不能为空",
@@ -229,7 +228,6 @@
     "errors_occurred": "发生错误",
     "output_format": "输出格式：",
     "quality_preset": "质量预设：",
-    "id3_version": "标签版本：",
     "quality_low": "低",
     "quality_medium": "中",
     "quality_high": "高",
@@ -390,10 +388,10 @@
       "title": "时长对比",
       "actual": "歌曲实际时长",
       "lyric_total": "歌词总时长",
-      "excellent_match": "✓ 时长完美匹配",
-      "good_match": "✓ 时长基本匹配",
-      "warning": "⚠ 时长差异较大，请确认",
-      "mismatch": "✗ 时长差异过大，可能不匹配",
+      "excellent_match": "时长完美匹配",
+      "good_match": "时长基本匹配",
+      "warning": "时长差异较大，请确认",
+      "mismatch": "时长差异过大，可能不匹配",
       "unknown": "时长信息未知"
     },
     "sorted_by_match": "已按匹配度排序",
@@ -478,11 +476,11 @@
     "edit_success_count": "成功 {count} 个文件",
     "edit_fail_count": "失败 {count} 个文件",
     "presets": {
-      "ringtone": "📱 手机铃声",
-      "car_audio": "🚗 车载播放",
-      "hifi_archive": "💾 HiFi存档",
-      "podcast": "🎧 Podcast",
-      "music_share": "🎵 音乐分享"
+      "ringtone": "手机铃声",
+      "car_audio": "车载播放",
+      "hifi_archive": "HiFi存档",
+      "podcast": "Podcast",
+      "music_share": "音乐分享"
     },
     "preset_descriptions": {
       "ringtone": "适合制作iPhone/Android铃声（30秒，带淡入淡出）",

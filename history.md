@@ -1,19 +1,22 @@
 # 项目变更历史
 
-## v0.6.4 (2026-08-04) Windows 封面预览兼容修复 + 转换页 ID3 版本选择
-- **问题修复（ID3v2.3 兼容）**：
-  - eyed3 0.9.9 默认写 ID3v2.4 标签，Windows 资源管理器只解析 ID3v2.3 的 APIC 封面帧
-  - 导致「先转换→嵌元数据」的 MP3 在资源管理器中无法预览封面
-  - 修复所有 eyed3 MP3 标签写入路径，强制 ID3v2.3（`tags.save(version=ID3_V2_3)`）
-  - 修复 mutagen 歌词嵌入路径，强制 `save(v2_version=3)` 避免保留原 v2.4 版本
-  - 修复 eyed3 子模块懒加载问题：`import eyed3` 不加载 `eyed3.id3`，添加显式导入
-- **功能新增（转换页 ID3 版本选择）**：
-  - 转换页质量预设后新增「标签版本」下拉框（ID3v2.3 默认 / ID3v2.4 可选）
-  - ConverterConfig 新增 `id3_version` 字段，MP3 输出时自动添加 `-id3v2_version` 参数
-  - 端到端验证：config 参数经 ffmpeg 实际转换确认 v2.3→`(2,3,0)` / v2.4→`(2,4,0)`
-- **新增启动脚本**：
-  - `launcher_hidden.py` / `start.bat` / `start_Imusic.vbs`：Windows 后台启动器（隐藏控制台窗口）
-- **涉及文件**: `auto_tag/audio_recognize/_tags.py`, `auto_tag/converter/metadata_manager.py`, `auto_tag/lyric/lyric_embedder.py`, `auto_tag/converter/config.py`, `auto_tag/gui/pages/converter_page.py`, `auto_tag/gui/i18n/locales/zh.json`, `auto_tag/gui/i18n/locales/en.json`, `tests/test_id3_windows_compat.py`, `tests/test_converter.py`, `auto_tag/version.py`, `pyproject.toml`, `launcher_hidden.py`(新增), `start.bat`(新增), `start_Imusic.vbs`(新增)
+## refactor(gui): 移除 GUI 层所有 emoji，改用 qfluentwidgets Fluent Icons
+- **改动范围**：auto_tag/gui + auto_tag/editor，共 9 文件 ~311 行
+- **核心改动**：
+  - `presets.py`：icon 字段从 emoji 字符串改为 FIF 枚举名（PHONE/CAR/SAVE/HEADPHONE/MUSIC/SETTING）
+  - `editor_page.py`：文件计数 IconWidget(FIF.CHECKBOX)、预设下拉 icon fallback
+  - `music_manager_page.py`：修复 `.fluentIcon()` → `.icon()` AttributeError（🔍 fallback 消失的根因）
+  - `settings_page.py`：`_set_cookie_validation()` 统一验证图标，刷新按钮 IconWidget(FIF.SYNC)
+  - `song_search_dialog.py`：关键词行 IconWidget(FIF.SEARCH)、歌词表 ⏳/✅/❌ → FIF.SYNC/ACCEPT/CANCEL
+  - `cookie_expired_dialog.py`：Dialog → MessageBoxBase，7 处 tr() 路径修正为 `settings_page.cookie_dialog.*`
+  - `about_page.py`：LinkRowWidget 用 IconWidget(FIF) 替换 emoji，新增 chevron 绘制 + hover 高亮 + section header
+  - `zh.json` / `en.json`：cookie_dialog、duration_match、presets 等值去 emoji 前缀
+- **验证**：
+  - py_compile 全部 7 个 .py 文件通过 ✅
+  - Smoke test（offscreen）构建成功，i18n 文本解析无 raw key ✅
+  - Emoji scan：32 行残留，全在日志/注释/文档字符串（可接受） ✅
+  - test_editor_presets 26/26 PASSED、test_nested_i18n 4/4 PASSED ✅
+- **涉及文件**: presets.py, editor_page.py, music_manager_page.py, settings_page.py, song_search_dialog.py, cookie_expired_dialog.py, about_page.py, zh.json, en.json
 
 ## v0.6.3 (2026-05-12) 彻底修复打包应用版本号显示为 unknown 的问题
 - **问题现象**：

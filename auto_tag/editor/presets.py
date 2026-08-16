@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
     "ringtone": {
         "name": {"zh": "手机铃声", "en": "Phone Ringtone"},
-        "icon": "📱",
+        "icon": "PHONE",
         "description": {
             "zh": "适合制作iPhone/Android铃声（30秒，淡入淡出）",
             "en": "Optimized for phone ringtones (30s with fade in/out)",
@@ -45,7 +45,7 @@ BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
     },
     "car_audio": {
         "name": {"zh": "车载播放", "en": "Car Audio"},
-        "icon": "🚗",
+        "icon": "CAR",
         "description": {
             "zh": "高兼容性MP3，适合车载音响系统",
             "en": "High compatibility MP3 for car audio systems",
@@ -58,7 +58,7 @@ BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
     },
     "hifi_archive": {
         "name": {"zh": "HiFi存档", "en": "HiFi Archive"},
-        "icon": "💾",
+        "icon": "SAVE",
         "description": {
             "zh": "无损FLAC格式，适合长期音乐归档",
             "en": "Lossless FLAC format for long-term music archiving",
@@ -71,7 +71,7 @@ BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
     },
     "podcast": {
         "name": {"zh": "Podcast", "en": "Podcast"},
-        "icon": "🎧",
+        "icon": "HEADPHONE",
         "description": {
             "zh": "语音优化MP3，适合播客和有声书",
             "en": "Voice-optimized MP3 for podcasts and audiobooks",
@@ -89,7 +89,7 @@ BUILTIN_PRESETS: dict[str, dict[str, Any]] = {
     },
     "music_share": {
         "name": {"zh": "音乐分享", "en": "Music Share"},
-        "icon": "🎵",
+        "icon": "MUSIC",
         "description": {
             "zh": "高质量AAC格式，体积小音质好，适合社交媒体分享",
             "en": "High quality AAC format, small size with great quality for social media sharing",
@@ -165,7 +165,7 @@ class PresetManager:
         self,
         name: str,
         config: EditorConfig,
-        icon: str = "⚙️",
+        icon: str = "SETTING",
         description_zh: str = "",
         description_en: str = "",
     ) -> tuple[bool, str]:
@@ -175,7 +175,7 @@ class PresetManager:
         Args:
             name: 预设名称（唯一标识符）
             config: 编辑器配置对象
-            icon: 图标（emoji）
+            icon: Fluent 图标名（如 'PHONE'，对应 qfluentwidgets.FluentIcon 成员）
             description_zh: 中文描述
             description_en: 英文描述
 

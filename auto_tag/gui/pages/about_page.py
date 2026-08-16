@@ -29,8 +29,17 @@ import sys
 import urllib.request
 from typing import Optional
 
-from PySide6.QtCore import Qt, QUrl
-from PySide6.QtGui import QFont, QDesktopServices, QCursor
+from PySide6.QtCore import Qt, QUrl, QEvent, QPointF
+from PySide6.QtGui import (
+    QFont,
+    QDesktopServices,
+    QCursor,
+    QPainter,
+    QColor,
+    QPen,
+    QPaintEvent,
+    QMouseEvent,
+)
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -45,8 +54,11 @@ from qfluentwidgets import (
     SwitchButton,
     CardWidget,
     FluentIcon as FIF,
+    IconWidget,
     InfoBar,
     InfoBarPosition,
+    isDarkTheme,
+    qconfig,
 )
 
 from auto_tag.gui.i18n import tr
@@ -107,33 +119,82 @@ class LinkRowWidget(QWidget):
     """
     可点击的链接行组件
 
-    继承自 QWidget，正确重写 mousePressEvent 处理点击事件。
-    包含图标、文本和箭头图标。
+    布局：左侧 Fluent 图标 + 文本 + 右侧 chevron 指示符。
+    悬停时显示圆角高亮背景，颜色随主题自动适配（浅色/深色）。
+    点击后通过 QDesktopServices 打开外部链接。
     """
 
-    def __init__(self, icon_text: str, text: str, url: str, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, icon: FIF, text: str, url: str, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
         self._url = url
+        self._hover = False
         self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setContentsMargins(4, 5, 20, 5)
         layout.setSpacing(12)
 
-        icon_label = QLabel(icon_text)
-        icon_label.setFixedWidth(24)
-        layout.addWidget(icon_label)
+        icon_widget = IconWidget(icon)
+        icon_widget.setFixedSize(20, 20)
+        layout.addWidget(icon_widget)
 
         self._text_label = BodyLabel(text)
         layout.addWidget(self._text_label)
         layout.addStretch()
 
-        arrow_label = QLabel("↗")
-        arrow_label.setStyleSheet("color: gray;")
-        layout.addWidget(arrow_label)
+        self.setMinimumHeight(40)
 
-    def mousePressEvent(self, event) -> None:
+        qconfig.themeChangedFinished.connect(self._on_theme_changed)
+
+    def set_text(self, text: str) -> None:
+        """设置行文本（供语言切换时刷新）"""
+        self._text_label.setText(text)
+
+    def enterEvent(self, event: QEvent) -> None:
+        self._hover = True
+        self.update()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event: QEvent) -> None:
+        self._hover = False
+        self.update()
+        super().leaveEvent(event)
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """绘制悬停圆角高亮背景与右侧 chevron 指示符"""
+        super().paintEvent(event)
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        if self._hover:
+            hover_color = QColor(255, 255, 255, 24) if isDarkTheme() else QColor(0, 0, 0, 13)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(hover_color)
+            painter.drawRoundedRect(self.rect().adjusted(2, 2, -2, -2), 8, 8)
+
+        self._draw_chevron(painter)
+
+    def _draw_chevron(self, painter: QPainter) -> None:
+        """在右侧绘制 chevron 指示符，颜色随主题适配"""
+        color = QColor(255, 255, 255, 110) if isDarkTheme() else QColor(0, 0, 0, 96)
+        pen = QPen(color)
+        painter.setPen(pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+
+        cx = self.width() - 13
+        cy = self.height() // 2
+        points = [QPointF(cx - 3, cy - 4), QPointF(cx + 3, cy), QPointF(cx - 3, cy + 4)]
+        painter.drawPolyline(points)
+
+    def _on_theme_changed(self) -> None:
+        """主题切换时刷新行内图标与 chevron"""
+        for icon_widget in self.findChildren(IconWidget):
+            icon_widget.update()
+        self.update()
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             QDesktopServices.openUrl(QUrl(self._url))
         super().mousePressEvent(event)
@@ -162,6 +223,43 @@ class AboutPage(QWidget):
         self._license_url = "https://github.com/muzyyue/Imusic/blob/main/LICENSE"
 
         self._setup_ui()
+        qconfig.themeChangedFinished.connect(self._on_theme_changed)
+
+    def _add_section_header(self, parent_layout: QVBoxLayout, icon: FIF, text: str) -> SubtitleLabel:
+        """
+        创建带前导 Fluent 图标的卡片标题行并加入指定布局
+
+        Args:
+            parent_layout: 目标布局
+            icon: 标题前导的 Fluent 图标
+            text: 标题文本
+
+        Returns:
+            SubtitleLabel: 标题标签（供语言切换时刷新）
+        """
+        header = QWidget()
+        layout = QHBoxLayout(header)
+        layout.setContentsMargins(4, 0, 4, 0)
+        layout.setSpacing(8)
+
+        icon_widget = IconWidget(icon)
+        icon_widget.setFixedSize(16, 16)
+        layout.addWidget(icon_widget)
+
+        label = SubtitleLabel(text)
+        font = QFont()
+        font.setPointSize(14)
+        label.setFont(font)
+        layout.addWidget(label)
+        layout.addStretch()
+
+        parent_layout.addWidget(header)
+        return label
+
+    def _on_theme_changed(self) -> None:
+        """主题切换时刷新页面内所有 Fluent 图标"""
+        for icon_widget in self.findChildren(IconWidget):
+            icon_widget.update()
 
     def _setup_ui(self) -> None:
         main_layout = QVBoxLayout(self)
@@ -217,20 +315,18 @@ class AboutPage(QWidget):
         update_card_layout.setContentsMargins(16, 16, 16, 16)
         update_card_layout.setSpacing(0)
 
-        self._update_settings_section = SubtitleLabel(tr("about_page.update_settings"))
-        section_font = QFont()
-        section_font.setPointSize(14)
-        self._update_settings_section.setFont(section_font)
-        update_card_layout.addWidget(self._update_settings_section)
+        self._update_settings_section = self._add_section_header(
+            update_card_layout, FIF.CLOUD_DOWNLOAD, tr("about_page.update_settings")
+        )
 
         auto_update_row = QWidget()
         auto_update_layout = QHBoxLayout(auto_update_row)
-        auto_update_layout.setContentsMargins(4, 6, 4, 6)
+        auto_update_layout.setContentsMargins(4, 5, 4, 5)
         auto_update_layout.setSpacing(12)
 
-        self._auto_update_icon = QLabel("🔄")
-        self._auto_update_icon.setFixedWidth(24)
-        auto_update_layout.addWidget(self._auto_update_icon)
+        auto_update_icon = IconWidget(FIF.UPDATE)
+        auto_update_icon.setFixedSize(20, 20)
+        auto_update_layout.addWidget(auto_update_icon)
 
         self._auto_update_label = BodyLabel(tr("about_page.auto_check_update"))
         auto_update_layout.addWidget(self._auto_update_label)
@@ -241,6 +337,8 @@ class AboutPage(QWidget):
         self._auto_update_switch.checkedChanged.connect(self._on_auto_update_changed)
         auto_update_layout.addWidget(self._auto_update_switch)
 
+        auto_update_row.setMinimumHeight(40)
+
         update_card_layout.addWidget(auto_update_row)
         main_layout.addWidget(update_card)
 
@@ -250,22 +348,22 @@ class AboutPage(QWidget):
         feedback_card_layout.setContentsMargins(16, 16, 16, 16)
         feedback_card_layout.setSpacing(2)
 
-        self._feedback_section = SubtitleLabel(tr("about_page.feedback"))
-        self._feedback_section.setFont(section_font)
-        feedback_card_layout.addWidget(self._feedback_section)
+        self._feedback_section = self._add_section_header(
+            feedback_card_layout, FIF.FEEDBACK, tr("about_page.feedback")
+        )
 
         self._report_bug_row = LinkRowWidget(
-            "🐛", tr("about_page.report_bug"), self._issues_url
+            FIF.HELP, tr("about_page.report_bug"), self._issues_url
         )
         feedback_card_layout.addWidget(self._report_bug_row)
 
         self._suggest_feature_row = LinkRowWidget(
-            "💡", tr("about_page.suggest_feature"), self._suggest_feature_url
+            FIF.QUICK_NOTE, tr("about_page.suggest_feature"), self._suggest_feature_url
         )
         feedback_card_layout.addWidget(self._suggest_feature_row)
 
         self._discussions_row = LinkRowWidget(
-            "💬", tr("about_page.discussions"), self._discussions_url
+            FIF.CHAT, tr("about_page.discussions"), self._discussions_url
         )
         feedback_card_layout.addWidget(self._discussions_row)
 
@@ -277,17 +375,17 @@ class AboutPage(QWidget):
         links_card_layout.setContentsMargins(16, 16, 16, 16)
         links_card_layout.setSpacing(2)
 
-        self._other_links_section = SubtitleLabel(tr("about_page.other_links"))
-        self._other_links_section.setFont(section_font)
-        links_card_layout.addWidget(self._other_links_section)
+        self._other_links_section = self._add_section_header(
+            links_card_layout, FIF.LINK, tr("about_page.other_links")
+        )
 
         self._github_repo_row = LinkRowWidget(
-            "📦", tr("about_page.github_repo"), self._github_url
+            FIF.GITHUB, tr("about_page.github_repo"), self._github_url
         )
         links_card_layout.addWidget(self._github_repo_row)
 
         self._license_row = LinkRowWidget(
-            "📄", tr("about_page.license"), self._license_url
+            FIF.DOCUMENT, tr("about_page.license"), self._license_url
         )
         links_card_layout.addWidget(self._license_row)
 
@@ -363,12 +461,8 @@ class AboutPage(QWidget):
         self._feedback_section.setText(tr("about_page.feedback"))
         self._other_links_section.setText(tr("about_page.other_links"))
 
-        self._refresh_link_row_text(self._report_bug_row, tr("about_page.report_bug"))
-        self._refresh_link_row_text(self._suggest_feature_row, tr("about_page.suggest_feature"))
-        self._refresh_link_row_text(self._discussions_row, tr("about_page.discussions"))
-        self._refresh_link_row_text(self._github_repo_row, tr("about_page.github_repo"))
-        self._refresh_link_row_text(self._license_row, tr("about_page.license"))
-
-    def _refresh_link_row_text(self, row: LinkRowWidget, text: str) -> None:
-        if hasattr(row, '_text_label'):
-            row._text_label.setText(text)
+        self._report_bug_row.set_text(tr("about_page.report_bug"))
+        self._suggest_feature_row.set_text(tr("about_page.suggest_feature"))
+        self._discussions_row.set_text(tr("about_page.discussions"))
+        self._github_repo_row.set_text(tr("about_page.github_repo"))
+        self._license_row.set_text(tr("about_page.license"))
